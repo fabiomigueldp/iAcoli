@@ -320,7 +320,7 @@ def allowed_aids_for_event(ev):
 def is_morning(dtm): return dtm.hour < 12
 
 def fmt_dt(dtm):
-    wd = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"][dtm.weekday()]
+    wd = ["Seg","Ter","Qua","Qui","Sex","Sab","Dom"][dtm.weekday()]
     return f"{wd} {dtm.strftime('%d/%m/%Y %H:%M')}"
 
 def fmt_time(dtm): return dtm.strftime("%H:%M")
@@ -900,7 +900,7 @@ def list_assignments_table(start_date_, end_date_, com_filter=None, roles_filter
         roles = collect_roles_in_events(day_events)
         if roles_filter:
             roles = [r for r in roles if r in roles_filter]
-        wd = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"][day_events[0].dt.weekday()]
+        wd = ["Seg","Ter","Qua","Qui","Sex","Sab","Dom"][day_events[0].dt.weekday()]
         print_divider()
         print(f"{wd} {d.strftime('%d/%m/%Y')}")
         print_divider(ch='-')
@@ -1741,13 +1741,21 @@ def repl():
                     new_q = norm_q(change.split("=")[1])
                 changed = 0
                 for sid in list(targets):
+                    # antes de deletar a série antiga, recupere um pool (se existir)
+                    pool_set = None
+                    if SERIES_INDEX[sid]:
+                        any_eid = SERIES_INDEX[sid][0]
+                        pool = EVENTS[any_eid].meta.get("aid_pool")
+                        if pool:
+                            pool_set = set(pool)
+                    
                     period = sid.split("Q")[1].split("-", 1)[1]  # ex.: 01012025..31032025
                     start_s, end_s = period.split("..")
                     for eid in SERIES_INDEX[sid]:
                         EVENTS.pop(eid, None); ASSIGNMENTS.pop(eid, None)
                     del SERIES_INDEX[sid]
                     token_full = f"{com}{dow_canon}{new_hh:02d}{new_mi:02d}{new_q}{start_s}{end_s}"
-                    new_sid, _ = create_recurring(token_full)
+                    new_sid, _ = create_recurring(token_full, pool_aids=pool_set)
                     changed += 1
                 assign_incremental()
                 print(f"✏️  Recorrente(s) atualizada(s): {changed}."); continue
@@ -2034,8 +2042,13 @@ def repl():
                 minha_escala(aid); continue
 
             if cmd == "SUG":
-                if len(toks) < 3: print("Uso: SUG <EventKey> <ROLE> [N]"); continue
-                topn = int(toks[3]) if len(toks)>=4 and toks[3].isdigit() else 5
+                if len(toks) < 3: print("Uso: SUG <EventKey> <ROLE> [N=5]"); continue
+                topn = 5
+                if len(toks) >= 4:
+                    if toks[3].isdigit():
+                        topn = int(toks[3])
+                    elif toks[3].upper().startswith("N="):
+                        topn = int(toks[3].split("=", 1)[1])
                 suggest(toks[1], toks[2].upper(), topn); continue
 
             if cmd == "FREE":

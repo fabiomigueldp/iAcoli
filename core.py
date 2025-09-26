@@ -292,6 +292,31 @@ def ensure_series_list(sid):
 def mk_series_id(prefix, base_token):
     return f"{prefix}-{base_token}"
 
+def parse_pool_token(tok: str):
+    """
+    Aceita 'pool=1,2,3' ou 'aids=1;2;3'. Valida AIDs existentes.
+    Retorna set[int].
+    """
+    if "=" not in tok: 
+        return None
+    k, v = tok.split("=", 1)
+    if k.lower() not in ("pool", "aids"):
+        return None
+    parts = re.split(r"[,\s;]+", v.strip())
+    ids = {int(x) for x in parts if x}
+    invalid = [i for i in ids if i not in AC_DATA]
+    if invalid:
+        raise ValueError(f"IDs inválidos/não existentes: {invalid}")
+    return ids
+
+def allowed_aids_for_event(ev):
+    """Retorna set de AIDs permitidos no evento (ou None para todos)."""
+    pool = ev.meta.get("aid_pool")
+    if not pool:
+        return None
+    # meta guarda lista para JSON; aqui convertemos pra set
+    return set(pool)
+
 def is_morning(dtm): return dtm.hour < 12
 
 def fmt_dt(dtm):
@@ -343,7 +368,7 @@ def month_add(d: date, months: int) -> date:
     last = calendar.monthrange(y, m)[1]
     return date(y, m, min(d.day, last))
 
-def create_recurring(token):
+def create_recurring(token, pool_aids=None):
     m = REC_FULL_RE.match(token)
     short = False
     if not m:
@@ -375,6 +400,8 @@ def create_recurring(token):
         if cur.weekday() == dow_int:
             dtm = datetime(cur.year, cur.month, cur.day, hh, mi)
             ev = Event(com, dtm, q, series_id=sid, kind="REG")
+            if pool_aids:
+                ev.meta["aid_pool"] = sorted(list(pool_aids))
             upsert_event(ev)
             SERIES_INDEX[sid].append(ev.id)
             count += 1
@@ -384,8 +411,8 @@ def create_recurring(token):
 
 # =================== Comando SWAP ===================
 def swap_roles(event_token_1, role1, event_token_2=None, role2=None):
-    role1 = role1.upper()
-    if role2: role2 = role2.upper()
+    role1 = norm_role(role1)
+    if role2: role2 = norm_role(role2)
 
     def _get_ev_and_pairs(tok):
         com, dtm, _ = parse_eventkey(tok)
@@ -494,7 +521,7 @@ def edit_event(tok_old, tok_new):
             ASSIGNMENTS[new_id] = keep
     return old.id
 
-def create_series(prefix, base_token, days, kind="SOLENE"):
+def create_series(prefix, base_token, days, kind="SOLENE", pool_aids=None):
     com, dtm, qty = parse_eventkey(base_token)
     if qty is None:
         raise ValueError("Séries exigem quantidade no EventKey base (…Q).")
@@ -503,6 +530,9 @@ def create_series(prefix, base_token, days, kind="SOLENE"):
     for i in range(days):
         dt_i = dtm + timedelta(days=i)
         ev = Event(com, dt_i, qty, series_id=sid, kind=kind)
+        if pool_aids:
+            # guarde como lista para serialização
+            ev.meta["aid_pool"] = sorted(list(pool_aids))
         upsert_event(ev)
         ids.append(ev.id)
     SERIES_INDEX[sid] = sorted(ids, key=lambda x: EVENTS[x].dt)
@@ -575,9 +605,11 @@ def candidate_is_eliminated(aid, ev, role, tmp_assignments):
         return True
     return False
 
-def compute_threshold_and_counts(ev_dt, tmp_assignments):
+def compute_threshold_and_counts(ev_dt, tmp_assignments, allowed_ids=None):
     counts = counts_in_window(ev_dt, FAIR_WINDOW_DAYS, assignments_subset=tmp_assignments)
     active_ids = [aid for aid, meta in AC_DATA.items() if meta.get("ativo", True)]
+    if allowed_ids is not None:
+        active_ids = [aid for aid in active_ids if aid in allowed_ids]
     if not active_ids:
         avg = 0.0
     else:
@@ -612,10 +644,12 @@ def score_candidate(aid, ev, role, window_counts, tmp_assignments):
 
 def pick_best(ev, role, tmp_assignments, chosen_ids):
     """Escolhe o melhor candidato respeitando as regras local-first e limites de carga."""
-    # 1) Candidatos elegíveis (sem eliminações duras e não repetidos no mesmo evento)
+    allowed = allowed_aids_for_event(ev)
+    # 1) candidatos elegíveis
+    candidate_ids = (allowed if allowed is not None else set(AC_DATA.keys()))
     eligible = []
-    for aid in AC_DATA.keys():
-        if aid in chosen_ids: 
+    for aid in candidate_ids:
+        if aid in chosen_ids:
             continue
         if candidate_is_eliminated(aid, ev, role, tmp_assignments):
             continue
@@ -623,13 +657,13 @@ def pick_best(ev, role, tmp_assignments, chosen_ids):
     if not eligible:
         return None
 
-    # 2) Threshold e contagens na janela
-    thresh, win_counts = compute_threshold_and_counts(ev.dt, tmp_assignments)
+    # 2) threshold/contagem no pool
+    thresh, win_counts = compute_threshold_and_counts(ev.dt, tmp_assignments, allowed_ids=(allowed if allowed is not None else None))
 
     def proj_ok(aid):
         return (win_counts.get(aid, 0) + 1) <= thresh
 
-    # 3) Particiona por comunidade (local / outros)
+    # 3) particiona por comunidade
     locals_ok = [aid for aid in eligible if AC_DATA[aid]["home"] == ev.com and proj_ok(aid)]
     others_ok = [aid for aid in eligible if AC_DATA[aid]["home"] != ev.com and proj_ok(aid)]
 
@@ -1117,7 +1151,7 @@ def a_unbloq(aid, idx_tok):
     arr = BLOCKS.get(aid, [])
     if 0 <= idx < len(arr):
         blk = arr.pop(idx)
-        print(f"✅ Removido: {blk['start']}..{blk['end']}")
+        print(f"✅ Removido: {blk['start'].strftime('%d/%m/%Y %H:%M')}..{blk['end'].strftime('%d/%m/%Y %H:%M')}")
     else:
         print("Índice fora do intervalo.")
 
@@ -1182,6 +1216,7 @@ def a_skill_clear(aid):
 
 # =================== Ferramentas de controle manual ===================
 def force_assign(event_token, role, aid):
+    role = norm_role(role)
     com, dtm, _ = parse_eventkey(event_token)
     eid = event_id_from(com, dtm)
     if eid not in EVENTS:
@@ -1200,6 +1235,7 @@ def force_assign(event_token, role, aid):
     print("✅ Atribuição aplicada.")
 
 def unassign(event_token, role):
+    role = norm_role(role)
     com, dtm, _ = parse_eventkey(event_token)
     eid = event_id_from(com, dtm)
     if eid not in EVENTS:
@@ -1219,10 +1255,15 @@ def suggest(event_token, role, topn=5):
         print(f"∅ Função '{role}' não existe neste evento."); return
     tmp = dict(ASSIGNMENTS)
     chosen = set(a for _, a in tmp.get(eid, []))
-    thresh, win_counts = compute_threshold_and_counts(ev.dt, tmp)
+    allowed = allowed_aids_for_event(ev)
+
+    # threshold/contagem considerando o pool
+    thresh, win_counts = compute_threshold_and_counts(ev.dt, tmp, allowed_ids=(allowed if allowed is not None else None))
+
     cands = []
-    for aid in AC_DATA.keys():
-        if aid in chosen: 
+    candidate_ids = (allowed if allowed is not None else set(AC_DATA.keys()))
+    for aid in candidate_ids:
+        if aid in chosen:
             continue
         if candidate_is_eliminated(aid, ev, role, tmp):
             continue
@@ -1249,7 +1290,7 @@ def suggest(event_token, role, topn=5):
         if shown >= topn: break
         a = AC_DATA[aid]
         tag = "LOCAL" if is_local else "OUTRA"
-        ok = "OK" if valid else f"↑{(counts_in_window(ev.dt, FAIR_WINDOW_DAYS).get(aid,0)+1 - compute_threshold_and_counts(ev.dt, tmp)[0]):.1f}"
+        ok = "OK" if valid else f"↑{(win_counts.get(aid,0)+1 - thresh):.1f}"
         qual = "✓" if role in AC_DATA[aid].get("skills", set()) else "✗"  # redundante (já filtrado), mas informativo
         print(f"{shown+1:>2}. #{aid:<2} {a['name']}  [{tag} {ok} qual={qual}]  (home={a['home']}, manhã={'✓' if a['manha'] else ' '})  score={sc:.2f}")
         shown += 1
@@ -1435,19 +1476,23 @@ EVENTOS
   L [YYYY-MM|DDMM..DDMM]       → lista eventos (padrão: hoje..fim do mês)
 
 RECORRÊNCIA (CR) E SÉRIES SOLENES
-  CR <COM><DOW><HHMM><Q>                     → cria recorrente (por DEFAULT_RECURRENCE_MONTHS)
-  CR <COM><DOW><HHMM><Q><INI><FIM>           → cria recorrente no período (INI/FIM = DDMMYY|DDMMYYYY)
-  CR CANCELAR <EventKey>                      → cancela uma única data de uma CR
-  DR <SERIES_ID|CRcurto>                      → apaga série(s) (use token CR curto para apagar todas do padrão)
-  ER <CRcurto> <NOVO_HHMM|Q=nn>               → edita hora ou Q de recorrência(s)
-  T  <EventKeyBaseQ>                          → cria Tríduo (3 dias) [SOLENE]
-  W7 <EventKeyBaseQ>                          → cria Semana Festiva (7 dias) [SOLENE]
-  N9 <EventKeyBaseQ>                          → cria Novena (9 dias) [SOLENE]
-  S<L> <EventKeyBaseQ>                        → cria série de L dias [SOLENE]
-  ES <SERIES_ID> <NovoBaseQ>                  → rebaseia série para novo horário/quantidade
+  CR <COM><DOW><HHMM><Q> [pool=1,2,3]                 → cria recorrente (por DEFAULT_RECURRENCE_MONTHS)
+  CR <COM><DOW><HHMM><Q><INI><FIM> [pool=1,2,3]       → cria recorrente no período (INI/FIM = DDMMYY|DDMMYYYY)
+  CR CANCELAR <EventKey>                              → cancela uma única data de uma CR
+  DR <SERIES_ID|CRcurto>                              → apaga série(s) (use token CR curto para apagar todas do padrão)
+  ER <CRcurto> <NOVO_HHMM|Q=nn>                       → edita hora ou Q de recorrência(s)
+  T  <EventKeyBaseQ> [pool=1,2,3]                     → cria Tríduo (3 dias) [SOLENE]
+  W7 <EventKeyBaseQ> [pool=1,2,3]                     → cria Semana Festiva (7 dias) [SOLENE]
+  N9 <EventKeyBaseQ> [pool=1,2,3]                     → cria Novena (9 dias) [SOLENE]
+  S<L> <EventKeyBaseQ> [pool=1,2,3]                   → cria série de L dias [SOLENE]
+  ES <SERIES_ID> <NovoBaseQ> [scope=all|upcoming] [pool=1,2,3] → rebaseia série para novo horário/quantidade
+
+POOLS DE ACÓLITOS
+  • Use pool=1,2,3 ou aids=1;2;3 para restringir candidatos disponíveis na série
+  • Se pool reduzir demais os candidatos, funções podem ficar em aberto (use FREE/CHK)
 
 ESCALA / ATRIBUIÇÕES
-  ESCALA [período] [modo=tabela|linhas|csv] [com=A,B] [roles=R1,R2] [namew=N]
+  ESCALA [período] [modo=tabela|linhas|csv] [com=A,B] [roles=R1,R2] [namew=N] (namew máx. 16)
   RECALCULAR | RECALC | RE [período]         → recalcula escala do período
   ASSIGN <EventKey> <ROLE> <AID>             → força atribuição
   REPLACE <EventKey> <ROLE> <AID>            → substitui acólito naquela função
@@ -1459,6 +1504,11 @@ ESCALA / ATRIBUIÇÕES
   CHK [período]                               → checagens (faltas, choques, bloqueios, QUAL)
   STATS [período]                             → estatísticas de carga
   MINHA_ESCALA <AID> [período]               → agenda individual
+
+GESTÃO DE POOLS (evento específico)
+  POOL SET <EventKey> 1,2,3                  → define pool para evento específico
+  POOL CLEAR <EventKey>                      → remove pool do evento (volta para todos)
+  POOL SHOW <EventKey>                       → mostra pool atual do evento
 
 ACÓLITOS
   A LIST
@@ -1539,9 +1589,15 @@ def repl():
                     push_history("R ALL")
                     EVENTS.clear(); ASSIGNMENTS.clear(); SERIES_INDEX.clear()
                     print("🗑️  Todos os eventos foram removidos."); continue
-                ok = remove_event_by_key(toks[1])
-                if ok: push_history(f"R {toks[1]}")
-                print("🗑️  Removido." if ok else "∅ Evento não encontrado."); continue
+                try:
+                    com, dtm, _ = parse_eventkey(toks[1])
+                    eid = event_id_from(com, dtm)
+                    if eid in EVENTS:
+                        push_history(f"R {toks[1]}")
+                    ok = remove_event_by_key(toks[1])
+                    print("🗑️  Removido." if ok else "∅ Evento não encontrado."); continue
+                except Exception as e:
+                    print("Erro:", e); continue
 
             if cmd == "R" and len(toks)==3 and toks[1].upper()=="DAY":
                 try:
@@ -1549,42 +1605,80 @@ def repl():
                 except Exception as e:
                     print("Erro:", e); continue
 
-            if cmd == "T" and len(toks)==2:
+            if cmd == "T" and len(toks) >= 2:
                 push_history("T")
-                sid, ids = create_series("T", toks[1], 3, kind="SOLENE"); assign_incremental()
+                pool = None
+                if len(toks) >= 3:
+                    maybe = parse_pool_token(toks[2])
+                    if maybe is not None:
+                        pool = maybe
+                sid, ids = create_series("T", toks[1], 3, kind="SOLENE", pool_aids=pool)
+                assign_incremental()
                 print(f"✅ Tríduo criado ({sid}) com {len(ids)} celebrações."); continue
 
-            if cmd == "W7" and len(toks)==2:
+            if cmd == "W7" and len(toks) >= 2:
                 push_history("W7")
-                sid, ids = create_series("W7", toks[1], 7, kind="SOLENE"); assign_incremental()
+                pool = None
+                if len(toks) >= 3:
+                    maybe = parse_pool_token(toks[2])
+                    if maybe is not None: 
+                        pool = maybe
+                sid, ids = create_series("W7", toks[1], 7, kind="SOLENE", pool_aids=pool)
+                assign_incremental()
                 print(f"✅ Semana Festiva criada ({sid}) com {len(ids)} celebrações."); continue
 
-            if cmd == "N9" and len(toks)==2:
+            if cmd == "N9" and len(toks) >= 2:
                 push_history("N9")
-                sid, ids = create_series("N9", toks[1], 9, kind="SOLENE"); assign_incremental()
+                pool = None
+                if len(toks) >= 3:
+                    maybe = parse_pool_token(toks[2])
+                    if maybe is not None: 
+                        pool = maybe
+                sid, ids = create_series("N9", toks[1], 9, kind="SOLENE", pool_aids=pool)
+                assign_incremental()
                 print(f"✅ Novena criada ({sid}) com {len(ids)} celebrações."); continue
 
-            if cmd.startswith("S") and cmd not in ("SHOW", "SAVE", "SUG", "STATS") and len(toks)==2:
+            if cmd.startswith("S") and cmd not in ("SHOW", "SAVE", "SUG", "STATS") and len(toks) >= 2:
                 try: L = int(cmd[1:])
                 except: raise ValueError("Use S<L> com L numérico, ex.: S8 ...")
                 push_history(f"S{L}")
-                sid, ids = create_series(cmd, toks[1], L, kind="SOLENE"); assign_incremental()
+                pool = None
+                if len(toks) >= 3:
+                    maybe = parse_pool_token(toks[2])
+                    if maybe is not None:
+                        pool = maybe
+                sid, ids = create_series(cmd, toks[1], L, kind="SOLENE", pool_aids=pool)
+                assign_incremental()
                 print(f"✅ Série {cmd} criada ({sid}) com {len(ids)} celebrações."); continue
 
             if cmd == "ES":
-                if len(toks) < 3: raise ValueError("Uso: ES <SERIES_ID> <EventKey_BASE_NOVO> [scope=all]")
+                if len(toks) < 3: raise ValueError("Uso: ES <SERIES_ID> <EventKey_BASE_NOVO> [scope=all|upcoming] [pool=...]")
                 push_history("ES")
                 sid = toks[1]; base_new = toks[2]
                 if sid not in SERIES_INDEX: raise ValueError("Série não encontrada.")
                 comN, dtN, qN = parse_eventkey(base_new)
                 if qN is None: raise ValueError("Forneça Q no EventKey novo para série.")
+                only_upcoming = any(x.lower()=="scope=upcoming" for x in toks[3:])
+                new_pool = None
+                for x in toks[3:]:
+                    maybe = parse_pool_token(x)
+                    if maybe is not None:
+                        new_pool = maybe
+
+                now_dt_val = now_dt()
                 changed = 0
                 for eid in sorted(SERIES_INDEX[sid], key=lambda x: EVENTS[x].dt):
                     ev = EVENTS[eid]
+                    if only_upcoming and ev.dt < now_dt_val:
+                        continue
                     new_dt = datetime(ev.dt.year, ev.dt.month, ev.dt.day, dtN.hour, dtN.minute)
                     tok_old = f"{ev.com}{ev.dt.strftime('%d%m%Y%H%M')}"
                     tok_new = f"{comN}{new_dt.strftime('%d%m%Y%H%M')}{qN}"
                     edit_event(tok_old, tok_new)
+                    # aplique/atualize o pool após editar (meta persiste)
+                    ev2 = EVENTS[event_id_from(comN, new_dt)]
+                    if new_pool is not None:
+                        ev2.meta["aid_pool"] = sorted(list(new_pool))
                     changed += 1
                 assign_incremental()
                 print(f"✏️  Série {sid} atualizada ({changed} celebrações)."); continue
@@ -1592,9 +1686,15 @@ def repl():
             if cmd == "CR" and len(toks)==3 and toks[1].upper()=="CANCELAR":
                 cr_cancelar_unica_data(toks[2]); continue
 
-            if cmd == "CR" and len(toks)==2:
+            if cmd == "CR" and len(toks) >= 2 and toks[1].upper() != "CANCELAR":
                 push_history("CR")
-                sid, count = create_recurring(toks[1]); assign_incremental()
+                pool = None
+                if len(toks) >= 3:
+                    maybe = parse_pool_token(toks[2])
+                    if maybe is not None: 
+                        pool = maybe
+                sid, count = create_recurring(toks[1], pool_aids=pool)
+                assign_incremental()
                 print(f"✅ Recorrente criada ({sid}) gerou {count} celebrações."); continue
 
             if cmd == "DR" and len(toks)==2:
@@ -1713,7 +1813,15 @@ def repl():
                 ev_id = event_id_from(com, dtm)
                 if ev_id in EVENTS:
                     ev = EVENTS[ev_id]
-                    print(fmt_event_line(ev)); print(fmt_assignment(ev))
+                    print(fmt_event_line(ev))
+                    
+                    # Exibir informações do pool, se houver
+                    pool = ev.meta.get("aid_pool")
+                    if pool:
+                        names = [AC_DATA[aid]["name"] for aid in pool if aid in AC_DATA]
+                        print(f"🎯 Pool restrito: AIDs {pool} ({', '.join(names)})")
+                    
+                    print(fmt_assignment(ev))
                 else: print("∅ Evento não encontrado."); continue
 
             # ----------------- Gestão Acolitos -----------------
@@ -1848,6 +1956,73 @@ def repl():
                 print("Uso: SWAP <EKey> <R1> WITH <R2>  |  SWAP <EKey1> <R1> WITH <EKey2> <R2>")
                 continue
 
+            if cmd == "POOL" and len(toks) >= 3:
+                subcmd = toks[1].upper()
+                if subcmd == "SET" and len(toks) == 4:
+                    push_history("POOL SET")
+                    event_key = toks[2]
+                    pool_token = toks[3]
+                    try:
+                        com, dtm, _ = parse_eventkey(event_key)
+                        eid = event_id_from(com, dtm)
+                        if eid not in EVENTS:
+                            print("∅ Evento não encontrado."); continue
+                        
+                        # Simula token pool= para usar o parser existente
+                        fake_token = f"pool={pool_token}"
+                        pool_aids = parse_pool_token(fake_token)
+                        if pool_aids is None:
+                            print("❌ Formato inválido. Use: POOL SET <EventKey> 1,2,3"); continue
+                        
+                        ev = EVENTS[eid]
+                        ev.meta["aid_pool"] = sorted(list(pool_aids))
+                        print(f"✅ Pool definido para {fmt_event_line(ev)}: {sorted(list(pool_aids))}")
+                        continue
+                    except Exception as e:
+                        print("Erro:", e); continue
+                
+                elif subcmd == "CLEAR" and len(toks) == 3:
+                    push_history("POOL CLEAR")
+                    event_key = toks[2]
+                    try:
+                        com, dtm, _ = parse_eventkey(event_key)
+                        eid = event_id_from(com, dtm)
+                        if eid not in EVENTS:
+                            print("∅ Evento não encontrado."); continue
+                        
+                        ev = EVENTS[eid]
+                        if "aid_pool" in ev.meta:
+                            del ev.meta["aid_pool"]
+                            print(f"✅ Pool removido de {fmt_event_line(ev)}")
+                        else:
+                            print(f"∅ Evento não possui pool definido.")
+                        continue
+                    except Exception as e:
+                        print("Erro:", e); continue
+                
+                elif subcmd == "SHOW" and len(toks) == 3:
+                    event_key = toks[2]
+                    try:
+                        com, dtm, _ = parse_eventkey(event_key)
+                        eid = event_id_from(com, dtm)
+                        if eid not in EVENTS:
+                            print("∅ Evento não encontrado."); continue
+                        
+                        ev = EVENTS[eid]
+                        pool = ev.meta.get("aid_pool")
+                        if pool:
+                            names = [AC_DATA[aid]["name"] for aid in pool if aid in AC_DATA]
+                            print(f"Pool de {fmt_event_line(ev)}: {pool} ({', '.join(names)})")
+                        else:
+                            print(f"∅ {fmt_event_line(ev)} não possui pool definido (todos os acólitos disponíveis)")
+                        continue
+                    except Exception as e:
+                        print("Erro:", e); continue
+                
+                else:
+                    print("Uso: POOL SET <EventKey> 1,2,3  |  POOL CLEAR <EventKey>  |  POOL SHOW <EventKey>")
+                continue
+
             if cmd == "MINHA_ESCALA":
                 if len(toks) < 2: 
                     print("Uso: MINHA_ESCALA <AID> [YYYY-MM|DDMM..DDMM]"); continue
@@ -1897,6 +2072,7 @@ def repl():
                 keep = 0
                 if len(toks)>=2 and toks[1].isdigit():
                     keep = int(toks[1])
+                push_history(f"PRUNE keep={keep}")
                 prune_past(keep_days=keep); continue
 
             if cmd == "CONFIG":

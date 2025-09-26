@@ -141,7 +141,181 @@
     .inputRow textarea::-webkit-scrollbar{ display:none }
 
     /* ========= Calendário ========= */
-    #calendar{flex:1; min-height:400px; background:#fff}
+    .calendar-panel{display:flex; flex-direction:column;}
+    .calendarShell{
+      flex:1;
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(240px,320px);
+      gap: var(--space-3);
+      padding: var(--space-3);
+      background: var(--surface);
+      min-height:0;
+      align-items:stretch;
+    }
+    #calendar{
+      min-height:420px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      border:1px solid var(--border);
+      overflow:hidden;
+    }
+    #eventDetails{
+      background: var(--surface-2);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-3);
+      display:flex;
+      flex-direction:column;
+      gap: var(--space-2);
+      min-height:0;
+      overflow:auto;
+    }
+    #eventDetails .event-details-empty{
+      text-align:center;
+      color: var(--muted);
+      margin:auto;
+      font-size:13px;
+      max-width:220px;
+    }
+    .event-details-content{
+      display:flex;
+      flex-direction:column;
+      gap: var(--space-2);
+    }
+    .event-details-head h2{
+      margin:0;
+      font-size:16px;
+    }
+    .event-details-time{
+      font-size:13px;
+      color: var(--muted);
+      text-transform:capitalize;
+    }
+    .event-details-meta{
+      font-size:13px;
+      color: var(--text);
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding:10px 12px;
+      position:relative;
+    }
+    .event-details-meta::before{
+      content: attr(data-label);
+      display:block;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      color: var(--muted);
+      margin-bottom:4px;
+    }
+    .event-details-acolytes-title{
+      font-weight:700;
+      font-size:13px;
+      color: var(--accent-ink);
+    }
+    .acolyte-list{
+      list-style:none;
+      padding:0;
+      margin:0;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .acolyte-item{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap: var(--space-2);
+      padding:8px 10px;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      font-size:13px;
+    }
+    .acolyte-item .acolyte-role{
+      font-weight:600;
+      color: var(--accent-ink);
+    }
+    .acolyte-item .acolyte-name{
+      font-weight:500;
+      color: var(--text);
+    }
+    .acolyte-item.empty{
+      color: var(--muted);
+      justify-content:center;
+    }
+    .details-actions{
+      display:flex;
+      gap: var(--space-2);
+      margin-top:auto;
+    }
+    .event-card{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      padding:6px 8px;
+      background:var(--accent-50);
+      border-radius:10px;
+      border:1px solid transparent;
+      min-width:0;
+    }
+    .event-card .event-title{
+      font-weight:700;
+      font-size:12px;
+      color: var(--accent-ink);
+    }
+    .event-card .event-time{
+      font-size:11px;
+      color: var(--muted);
+    }
+    .event-card .event-location{
+      font-size:11px;
+      color: var(--muted-2);
+    }
+    .event-card .event-acolytes{
+      display:flex;
+      flex-wrap:wrap;
+      gap:4px;
+    }
+    .event-card .acolyte-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:2px 6px;
+      border-radius:999px;
+      border:1px solid var(--accent-200);
+      background:#fff;
+      font-size:11px;
+      color: var(--accent-ink);
+      white-space:nowrap;
+    }
+    .event-card .acolyte-pill.more{
+      background:var(--accent);
+      color:#fff;
+      border-color:var(--accent);
+    }
+    .fc .fc-daygrid-event,
+    .fc .fc-timegrid-event{
+      border:none;
+      background:transparent;
+    }
+    .fc .fc-daygrid-event .fc-event-main,
+    .fc .fc-timegrid-event .fc-event-main{
+      padding:0;
+    }
+    .fc-event.is-selected .event-card{
+      border-color: var(--accent);
+      box-shadow:0 0 0 2px rgba(58,92,204,.18);
+    }
+    @media (max-width: 1100px){
+      .calendarShell{
+        grid-template-columns:1fr;
+      }
+      #eventDetails{
+        order:2;
+      }
+    }
     /* FullCalendar: tema neutro e coerente */
     .fc .fc-toolbar-title{ font-size:14px; font-weight:700; color:var(--accent-ink) }
     .fc .fc-button{
@@ -156,9 +330,6 @@
     .fc .fc-daygrid-day-number{ color:var(--muted); font-weight:600 }
     .fc .fc-col-header-cell-cushion{ color:var(--muted); }
     .fc .fc-day-today{ background: #f0f4ff !important }
-    .fc-event, .fc-event:hover{
-      background:#eef2ff; border:1px solid var(--accent-200); color:var(--accent-ink); border-radius:6px; padding:2px 4px
-    }
     .fc-list{
       --fc-list-event-hover-bg-color: #f9fafb;
     }
@@ -234,9 +405,30 @@
       </div>
     </section>
 
-    <section class="panel" aria-label="Calendário">
+    <section class="panel calendar-panel" aria-label="Calendário">
       <div class="title">Calendário</div>
-      <div id="calendar"></div>
+      <div class="calendarShell">
+        <div id="calendar" aria-label="Agenda"></div>
+        <aside id="eventDetails" aria-live="polite">
+          <div class="event-details-empty" role="note">Selecione uma missa no calendário.</div>
+          <div class="event-details-content" hidden>
+            <div class="event-details-head">
+              <h2 id="detailTitle">Missa</h2>
+              <div class="event-details-time" id="detailTime"></div>
+            </div>
+            <div class="event-details-meta" id="detailLocation" data-label="Local" hidden></div>
+            <div class="event-details-meta" id="detailDescription" data-label="Observações" hidden></div>
+            <div class="event-details-acolytes" id="detailAcolytesSection" hidden>
+              <div class="event-details-acolytes-title">Escala de acólitos</div>
+              <ul class="acolyte-list" id="detailAcolytes"></ul>
+            </div>
+            <div class="details-actions">
+              <button id="editEvent" class="btn mini" type="button">Editar</button>
+              <button id="deleteEvent" class="btn danger mini" type="button">Excluir</button>
+            </div>
+          </div>
+        </aside>
+      </div>
     </section>
   </main>
 
@@ -263,6 +455,17 @@
     const testBtn = document.getElementById('testBtn');
     const clearChatBtn = document.getElementById('clearChat');
     const toast = document.getElementById('toast');
+    const eventDetailsEl = document.getElementById('eventDetails');
+    const eventDetailsEmptyEl = eventDetailsEl?.querySelector('.event-details-empty') || null;
+    const eventDetailsContentEl = eventDetailsEl?.querySelector('.event-details-content') || null;
+    const detailTitleEl = document.getElementById('detailTitle');
+    const detailTimeEl = document.getElementById('detailTime');
+    const detailLocationEl = document.getElementById('detailLocation');
+    const detailDescriptionEl = document.getElementById('detailDescription');
+    const detailAcolytesSectionEl = document.getElementById('detailAcolytesSection');
+    const detailAcolytesEl = document.getElementById('detailAcolytes');
+    const editEventBtn = document.getElementById('editEvent');
+    const deleteEventBtn = document.getElementById('deleteEvent');
 
     const SETTINGS = {
       get apiKey(){ return localStorage.getItem('pplx_api_key') || ''; },
@@ -276,6 +479,121 @@
       set events(v){ localStorage.setItem('events_v2', JSON.stringify(v)); }
     };
 
+    const ACOLYTE_ROLES = {
+      LIB: { label: 'Librífero', short: 'LIB', aliases: ['LIBRIFERO'] },
+      CAM: { label: 'Campanário', short: 'CAM', aliases: ['CAMPANARIO'] },
+      CRU: { label: 'Cruciferário', short: 'CRU', aliases: ['CRUCIFERARIO', 'CRUZIFERARIO'] },
+      CER: { label: 'Ceroferário', short: 'CER', aliases: ['CEROFERARIO', 'CERIFERARIO'] },
+      TUR: { label: 'Turiferário', short: 'TUR', aliases: ['TURIFERARIO'] },
+      NAV: { label: 'Naveteiro', short: 'NAV', aliases: ['NAVETEIRO'] },
+      MIC: { label: 'Microfonário', short: 'MIC', aliases: ['MICROFONARIO', 'MICROFONISTA'] },
+    };
+    const ROLE_ORDER = ['LIB','CAM','CRU','CER','TUR','NAV','MIC'];
+
+    function stripAccents(str){
+      return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function normalizeRole(role){
+      if (!role) return '';
+      const raw = String(role).trim();
+      if (!raw) return '';
+      const cleaned = stripAccents(raw).toUpperCase().replace(/[^A-Z]/g, '');
+      if (ACOLYTE_ROLES[cleaned]) return cleaned;
+      for (const [key, meta] of Object.entries(ACOLYTE_ROLES)){
+        const aliases = meta.aliases || [];
+        const labelNormalized = stripAccents(meta.label).toUpperCase().replace(/[^A-Z]/g, '');
+        if (cleaned === labelNormalized || aliases.includes(cleaned)) return key;
+      }
+      if (cleaned.length === 3) return cleaned;
+      return cleaned || raw.toUpperCase();
+    }
+
+    function normalizeAcolytes(raw){
+      if (!raw) return [];
+      const acc = [];
+      const push = (role, name) => {
+        const cleanName = typeof name === 'string' ? name.trim() : '';
+        if (!role || !cleanName) return;
+        acc.push({ role: normalizeRole(role), name: cleanName });
+      };
+
+      const parseString = (str) => {
+        str.split(/[\n;,]/).forEach(part => {
+          const piece = part.trim();
+          if (!piece) return;
+          const [rolePart, ...rest] = piece.split(':');
+          if (rest.length){
+            push(rolePart, rest.join(':').trim());
+            return;
+          }
+          const hyphenSplit = piece.split(/[-–—]/);
+          if (hyphenSplit.length > 1){
+            const role = hyphenSplit.shift();
+            push(role, hyphenSplit.join('-').trim());
+            return;
+          }
+          const match = piece.match(/^(\w{3})\s+(.+)$/);
+          if (match) push(match[1], match[2].trim());
+        });
+      };
+
+      if (Array.isArray(raw)){
+        raw.forEach(item => {
+          if (!item) return;
+          if (typeof item === 'string'){
+            parseString(item);
+            return;
+          }
+          if (typeof item === 'object'){
+            const role = item.role || item.code || item.key || item.type || item.funcao || item.func || item.position || item.label;
+            const name = item.name || item.person || item.member || item.acolyte || item.assignee || item.value;
+            if (role && name){ push(role, name); return; }
+            if (role && Array.isArray(item.names)){ item.names.forEach(n => push(role, n)); }
+          }
+        });
+      } else if (typeof raw === 'object'){
+        Object.entries(raw).forEach(([role, value]) => {
+          if (typeof value === 'string'){ push(role, value); return; }
+          if (value && typeof value.name === 'string'){ push(role, value.name); }
+        });
+      } else if (typeof raw === 'string'){
+        parseString(raw);
+      }
+
+      const seen = new Set();
+      const unique = [];
+      acc.forEach(item => {
+        const role = item.role || '';
+        const name = item.name || '';
+        if (!role || !name) return;
+        const key = role + '::' + name.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        unique.push({ role, name });
+      });
+
+      unique.sort((a,b) => {
+        const ai = ROLE_ORDER.indexOf(a.role);
+        const bi = ROLE_ORDER.indexOf(b.role);
+        if (ai === -1 && bi === -1) return a.role.localeCompare(b.role);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+
+      return unique;
+    }
+
+    function formatAcolytePrompt(acolytes){
+      if (!acolytes || !acolytes.length) return '';
+      return acolytes.map(({ role, name }) => {
+        const meta = ACOLYTE_ROLES[role] || {};
+        const short = meta.short || role;
+        return `${short}: ${name}`;
+      }).join(', ');
+    }
+
     function showToast(msg, kind='ok'){
       toast.textContent = msg;
       toast.classList.toggle('err', kind!=='ok');
@@ -285,6 +603,9 @@
 
     // ======= FullCalendar =======
     let calendar;
+    let calendarEl = null;
+    let selectedEvent = null;
+    let selectedEventId = null;
     document.addEventListener('DOMContentLoaded', () => {
       // Restaurar preferências
       apiKeyEl.value = SETTINGS.apiKey;
@@ -297,8 +618,9 @@
       };
       inputEl.addEventListener('input', autosize); autosize();
 
-      const calEl = document.getElementById('calendar');
-      calendar = new FullCalendar.Calendar(calEl, {
+      calendarEl = document.getElementById('calendar');
+      const storedEvents = STORE.events.map(prepareStoredEvent);
+      calendar = new FullCalendar.Calendar(calendarEl, {
         locale: 'pt-br',
         timeZone: 'local',
         initialView: 'dayGridMonth',
@@ -311,47 +633,356 @@
         selectMirror: true,
         nowIndicator: true,
         height: '100%',
+        events: storedEvents,
+        eventContent: renderEventContent,
+        eventDidMount: handleEventDidMount,
         select: (selInfo) => {
-          const title = prompt('Título do evento:');
-          if (title) {
-            addEvent({ title, start: selInfo.start, end: selInfo.end, allDay: selInfo.allDay, description: 'Criado manualmente' });
-            showToast('Evento criado no calendário.');
-          }
+          openEventCreator(selInfo);
           calendar.unselect();
         },
         eventClick: (info) => {
-          const action = prompt('Editar título (ou deixe vazio para excluir):', info.event.title);
-          if (action === null) return;
-          if (action.trim() === '') {
-            info.event.remove();
-            saveEvents();
-            showToast('Evento removido.');
-          } else {
-            info.event.setProp('title', action.trim());
-            saveEvents();
-            showToast('Evento atualizado.');
-          }
-        },
-        events: STORE.events
+          if (info.jsEvent) info.jsEvent.preventDefault();
+          selectedEvent = info.event;
+          selectedEventId = info.event.id;
+          showEventDetails(info.event);
+        }
       });
       calendar.render();
+      clearEventDetails();
+
+      if (editEventBtn){
+        editEventBtn.addEventListener('click', () => {
+          if (!selectedEvent){
+            showToast('Selecione uma missa para editar.', 'err');
+            return;
+          }
+          openEventEditor(selectedEvent);
+        });
+      }
+      if (deleteEventBtn){
+        deleteEventBtn.addEventListener('click', () => {
+          if (!selectedEvent){
+            showToast('Selecione uma missa para excluir.', 'err');
+            return;
+          }
+          if (!confirm('Remover esta missa do calendário?')) return;
+          selectedEvent.remove();
+          saveEvents();
+          clearEventDetails();
+          showToast('Missa removida.');
+        });
+      }
 
       // Mensagem inicial
       pushBot(
-`Olá! Sou o **${AGENT_NAME}**, seu agente de agenda. Escreva normalmente e eu:
+`Olá! Sou o **${AGENT_NAME}**, seu agente de agenda litúrgica. Pode escrever normalmente e eu:
 1) respondo em texto claro;
-2) e, se houver ações, emitirei blocos JSON de agenda (expanda “detalhes” para ver).`
+2) gero ações de calendário quando necessário;
+3) mantenho nome da missa, local e a escala de acólitos (LIB, CAM, CRU, CER, TUR, NAV, MIC).`
       );
     });
 
     function addEvent(evt){
-      if (!evt.end && evt.start) {
-        const end = new Date(evt.start instanceof Date ? evt.start : evt.start + '');
-        end.setMinutes(end.getMinutes() + (evt.durationMin || 60));
-        evt.end = end;
+      const payload = { ...(evt || {}) };
+      if (!payload.end && payload.start) {
+        const baseStart = payload.start instanceof Date ? new Date(payload.start) : new Date(payload.start);
+        const mins = Number(payload.durationMin || payload.durationMinutes || 60) || 60;
+        const end = new Date(baseStart.getTime());
+        end.setMinutes(end.getMinutes() + mins);
+        payload.end = end;
       }
-      calendar.addEvent(evt);
+      const prepared = prepareEventInput(payload);
+      const created = calendar.addEvent(prepared);
       saveEvents();
+      return created;
+    }
+
+
+    function prepareStoredEvent(evt){
+      return prepareEventInput(evt || {});
+    }
+
+    function prepareEventInput(evt){
+      const base = { ...(evt || {}) };
+      if (!base.id) base.id = generateEventId();
+      if (base.start && !(base.start instanceof Date)) base.start = new Date(base.start);
+      if (base.end && !(base.end instanceof Date)) base.end = new Date(base.end);
+      const extended = { ...(base.extendedProps || {}) };
+      if (base.location && extended.location === undefined) extended.location = base.location;
+      if (base.description && extended.description === undefined) extended.description = base.description;
+      extended.acolytes = normalizeAcolytes(extended.acolytes || base.acolytes);
+      base.extendedProps = extended;
+      return base;
+    }
+
+    function generateEventId(){
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+      return 'evt_' + Math.random().toString(36).slice(2, 10);
+    }
+
+    function renderEventContent(arg){
+      const card = document.createElement('div');
+      card.className = 'event-card';
+
+      const title = document.createElement('div');
+      title.className = 'event-title';
+      title.textContent = arg.event.title || 'Missa';
+      card.appendChild(title);
+
+      const timeText = formatEventTimeShort(arg.event);
+      if (timeText){
+        const timeEl = document.createElement('div');
+        timeEl.className = 'event-time';
+        timeEl.textContent = timeText;
+        card.appendChild(timeEl);
+      }
+
+      const location = arg.event.extendedProps?.location;
+      if (location){
+        const locEl = document.createElement('div');
+        locEl.className = 'event-location';
+        locEl.textContent = location;
+        card.appendChild(locEl);
+      }
+
+      const acolytes = normalizeAcolytes(arg.event.extendedProps?.acolytes);
+      if (acolytes.length){
+        const wrap = document.createElement('div');
+        wrap.className = 'event-acolytes';
+        const max = Math.min(3, acolytes.length);
+        for (let i = 0; i < max; i++){
+          const item = acolytes[i];
+          const pill = document.createElement('span');
+          pill.className = 'acolyte-pill';
+          const meta = ACOLYTE_ROLES[item.role] || {};
+          pill.textContent = `${meta.short || item.role}: ${item.name}`;
+          wrap.appendChild(pill);
+        }
+        if (acolytes.length > 3){
+          const more = document.createElement('span');
+          more.className = 'acolyte-pill more';
+          more.textContent = `+${acolytes.length - 3}`;
+          wrap.appendChild(more);
+        }
+        card.appendChild(wrap);
+      }
+
+      return { domNodes: [card] };
+    }
+
+    function handleEventDidMount(arg){
+      if (!arg || !arg.el) return;
+      if (arg.event && arg.event.id) arg.el.dataset.eventId = arg.event.id;
+      const tooltipParts = [];
+      if (arg.event.title) tooltipParts.push(arg.event.title);
+      const timeText = formatEventTimeShort(arg.event);
+      if (timeText) tooltipParts.push(timeText);
+      if (arg.event.extendedProps?.location) tooltipParts.push(arg.event.extendedProps.location);
+      if (tooltipParts.length) arg.el.setAttribute('title', tooltipParts.join(' • '));
+      arg.el.classList.toggle('is-selected', !!selectedEventId && arg.event.id === selectedEventId);
+    }
+
+    function updateEventSelection(){
+      if (!calendarEl) return;
+      calendarEl.querySelectorAll('.fc-event').forEach(node => {
+        node.classList.toggle('is-selected', !!selectedEventId && node.dataset.eventId === selectedEventId);
+      });
+    }
+
+    function formatEventTimeShort(event){
+      if (!event || !event.start) return '';
+      if (event.allDay) return 'Dia inteiro';
+      const fmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const start = event.start;
+      const end = event.end;
+      if (!end || start.getTime() === end.getTime()) return fmt.format(start);
+      if (start.toDateString() === end.toDateString()) return `${fmt.format(start)} – ${fmt.format(end)}`;
+      return `${fmt.format(start)} → ${fmt.format(end)}`;
+    }
+
+    function capitalize(str){
+      if (!str) return '';
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    function formatEventDateRange(event){
+      if (!event || !event.start) return '';
+      const dateFmt = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+      const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const start = event.start;
+      const end = event.end;
+      const startLabel = capitalize(dateFmt.format(start));
+      if (event.allDay) return `${startLabel} • dia inteiro`;
+      if (!end || start.getTime() === end.getTime()) return `${startLabel} • ${timeFmt.format(start)}`;
+      if (start.toDateString() === end.toDateString()){
+        return `${startLabel} • ${timeFmt.format(start)} – ${timeFmt.format(end)}`;
+      }
+      const endLabel = capitalize(dateFmt.format(end));
+      return `${startLabel} ${timeFmt.format(start)} → ${endLabel} ${timeFmt.format(end)}`;
+    }
+
+    function populateAcolyteDetails(acolytes){
+      if (!detailAcolytesEl) return;
+      detailAcolytesEl.innerHTML = '';
+      if (!acolytes.length){
+        const li = document.createElement('li');
+        li.className = 'acolyte-item empty';
+        li.textContent = 'Nenhum acólito escalado.';
+        detailAcolytesEl.appendChild(li);
+        return;
+      }
+      acolytes.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'acolyte-item';
+        const meta = ACOLYTE_ROLES[item.role] || {};
+        const roleLabel = meta.label ? `${meta.label} (${meta.short || item.role})` : item.role;
+        const roleEl = document.createElement('span');
+        roleEl.className = 'acolyte-role';
+        roleEl.textContent = roleLabel;
+        const nameEl = document.createElement('span');
+        nameEl.className = 'acolyte-name';
+        nameEl.textContent = item.name;
+        li.append(roleEl, nameEl);
+        detailAcolytesEl.appendChild(li);
+      });
+    }
+
+    function showEventDetails(event){
+      if (!eventDetailsEl) return;
+      if (!event){
+        clearEventDetails();
+        return;
+      }
+      const acolytes = normalizeAcolytes(event.extendedProps?.acolytes);
+      if (eventDetailsEmptyEl) eventDetailsEmptyEl.hidden = true;
+      if (eventDetailsContentEl) eventDetailsContentEl.hidden = false;
+      if (detailTitleEl) detailTitleEl.textContent = event.title || 'Missa';
+      if (detailTimeEl) detailTimeEl.textContent = formatEventDateRange(event);
+
+      const location = event.extendedProps?.location || '';
+      if (detailLocationEl){
+        detailLocationEl.textContent = location;
+        detailLocationEl.hidden = !location;
+      }
+
+      const description = event.extendedProps?.description || '';
+      if (detailDescriptionEl){
+        detailDescriptionEl.textContent = description;
+        detailDescriptionEl.hidden = !description;
+      }
+
+      if (detailAcolytesSectionEl){
+        detailAcolytesSectionEl.hidden = false;
+      }
+      populateAcolyteDetails(acolytes);
+      updateEventSelection();
+    }
+
+    function clearEventDetails(){
+      if (eventDetailsEmptyEl) eventDetailsEmptyEl.hidden = false;
+      if (eventDetailsContentEl) eventDetailsContentEl.hidden = true;
+      if (detailTitleEl) detailTitleEl.textContent = 'Missa';
+      if (detailTimeEl) detailTimeEl.textContent = '';
+      if (detailLocationEl){
+        detailLocationEl.textContent = '';
+        detailLocationEl.hidden = true;
+      }
+      if (detailDescriptionEl){
+        detailDescriptionEl.textContent = '';
+        detailDescriptionEl.hidden = true;
+      }
+      if (detailAcolytesSectionEl){
+        detailAcolytesSectionEl.hidden = true;
+      }
+      if (detailAcolytesEl) detailAcolytesEl.innerHTML = '';
+      selectedEvent = null;
+      selectedEventId = null;
+      updateEventSelection();
+    }
+
+    function formatDateTimeInput(date){
+      if (!date) return '';
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function parseDateTimeInput(value){
+      if (!value) return null;
+      const trimmed = String(value).trim();
+      if (!trimmed) return null;
+      const match = trimmed.replace('T', ' ').match(/^(\d{4})[-/](\d{2})[-/](\d{2})(?:\s+(\d{2}):(\d{2}))?$/);
+      if (!match) return null;
+      const [, y, m, d, hh = '00', mm = '00'] = match;
+      return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm));
+    }
+
+    function openEventCreator(selInfo){
+      const title = prompt('Nome da missa:', '');
+      if (title === null) return;
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle){
+        showToast('Criação cancelada: informe o nome da missa.', 'err');
+        return;
+      }
+      const location = prompt('Local da missa:', '');
+      if (location === null) return;
+      const description = prompt('Observações adicionais:', '');
+      if (description === null) return;
+      const acolyteInput = prompt('Escala de acólitos (ex.: LIB: João, CAM: Maria):', '');
+      if (acolyteInput === null) return;
+
+      const created = addEvent({
+        title: trimmedTitle,
+        start: selInfo.start,
+        end: selInfo.end,
+        allDay: selInfo.allDay,
+        extendedProps: {
+          location: location.trim(),
+          description: description.trim(),
+          acolytes: normalizeAcolytes(acolyteInput)
+        }
+      });
+      if (created){
+        selectedEvent = created;
+        selectedEventId = created.id;
+        showEventDetails(created);
+        showToast('Missa criada no calendário.');
+      }
+    }
+
+    function openEventEditor(event){
+      if (!event) return;
+      const title = prompt('Nome da missa:', event.title || '');
+      if (title === null) return;
+      const startInput = prompt('Início (AAAA-MM-DD HH:MM):', formatDateTimeInput(event.start));
+      if (startInput === null) return;
+      const endInput = prompt('Fim (AAAA-MM-DD HH:MM):', formatDateTimeInput(event.end));
+      if (endInput === null) return;
+      const location = prompt('Local da missa:', event.extendedProps?.location || '');
+      if (location === null) return;
+      const description = prompt('Observações adicionais:', event.extendedProps?.description || '');
+      if (description === null) return;
+      const acolyteInput = prompt('Escala de acólitos (ex.: LIB: João, CAM: Maria):', formatAcolytePrompt(normalizeAcolytes(event.extendedProps?.acolytes)));
+      if (acolyteInput === null) return;
+
+      const trimmedTitle = title.trim() || 'Missa';
+      let startDate = parseDateTimeInput(startInput) || event.start;
+      let endDate = endInput.trim() ? parseDateTimeInput(endInput) : null;
+      if (!endDate && event.end && startDate){
+        const duration = event.end.getTime() - event.start.getTime();
+        if (duration > 0) endDate = new Date(startDate.getTime() + duration);
+      }
+
+      event.setProp('title', trimmedTitle);
+      if (startDate) event.setStart(startDate);
+      if (endDate) event.setEnd(endDate);
+      if (!endDate && !endInput.trim()) event.setEnd(null);
+      event.setExtendedProp('location', location.trim());
+      event.setExtendedProp('description', description.trim());
+      event.setExtendedProp('acolytes', normalizeAcolytes(acolyteInput));
+      saveEvents();
+      showEventDetails(event);
+      showToast('Evento atualizado.');
     }
 
     function saveEvents(){
@@ -360,7 +991,10 @@
           id: e.id,
           title: e.title,
           allDay: e.allDay,
-          extendedProps: e.extendedProps
+          extendedProps: {
+            ...e.extendedProps,
+            acolytes: normalizeAcolytes(e.extendedProps?.acolytes)
+          }
         };
         const defs = e._def || {};
         const rrule = defs.recurringDef?.typeData?.rruleStr || defs.recurringDef?.typeData?.rrule;
@@ -455,41 +1089,59 @@
 
     // ======= Chamada Perplexity =======
     const SYSTEM_PROMPT = `
-Você é o **Agente de Agenda da Paróquia**. Sua função é entender pedidos em PT-BR e operar o **calendário interno** exibido na tela.
+Você é o **Agente de Agenda da Paróquia**. Sua missão é administrar o calendário interno de missas, atuando como assistente confiável para o sacristão.
+
+### Objetivo central
+- Controlar o calendário interno de missas, respeitando horários, locais e escala de acólitos.
 
 ### Saída (contrato rígido)
 1) **Primeiro**, escreva uma mensagem curta, clara e humana (sem JSON embutido).
 2) **Depois**, se houver ações, emita **um ou mais blocos** \`\`\`json ... \`\`\` contendo SOMENTE ações:
    - Um bloco por ação. Não use arrays para múltiplas ações; escreva vários blocos.
-   - Não misture explicações dentro dos JSONs.
+   - Não inclua comentários nem explicações dentro dos JSONs.
 3) Para **agenda**, use o objeto **{"schedule": {...}}**.
 4) Para **consultar disponibilidade**, use **{"availability": {...}}**.
-5) Não produza blocos JSON se não houver ação.
+5) Não produza blocos JSON se nenhuma ação for necessária.
+
+### Agenda de missas
+- Para criar uma missa use {"schedule":{"action":"create", ...}} com os campos obrigatórios: title, start, end.
+- Inclua location sempre que o usuário especificar o local.
+- Transfira observações relevantes para description quando existirem.
+- Sempre que o usuário fornecer escala/funções de acólitos, inclua acolytes com uma lista de objetos { "role": "LIB", "name": "Fábio" }.
+- Se o usuário não citar acólitos, omita o campo acolytes (ou envie acolytes: [] para indicar remoção).
+- Converta nomes de funções para os códigos canônicos (LIB, CAM, CRU, CER, TUR, NAV, MIC), mesmo que o usuário escreva variações ou grafias diferentes.
+- Ao atualizar (action:"update"), só envie campos que realmente precisam mudar. Preserve título, local, descrição e escala existentes quando não houver instrução explícita.
+- Para remover toda a escala de uma missa, envie acolytes: [] no update.
+- Ao mover (action:"move"), mantenha o restante dos dados intacto.
+- Só utilize action:"delete" quando o usuário pedir exclusão explícita.
+
+### Escala de acólitos
+- Códigos aceitos: LIB (Librífero), CAM (Campanário), CRU (Cruciferário), CER (Ceroferário), TUR (Turiferário), NAV (Naveteiro), MIC (Microfonário).
+- Aceite sinônimos e flexões (ex.: "librífero", "campanário", "microfonista", etc.) convertendo para o código correto.
+- Sempre relacione cada código a um nome.
 
 ### Regras gerais
-- Calendário **INTERNAL**; **NÃO** mencione Google Calendar/iCloud/Outlook.
-- Timezone padrão: **America/Sao_Paulo**. Interprete datas relativas (hoje/amanhã/segunda) nesse fuso.
-- Ao inferir duração, se o usuário não disser, use **60 minutos**.
-- Para “remarcar”, manter descrição/local/participantes quando plausível.
-- IDs podem ser omitidos se não conhecidos; use filtros por título quando necessário.
+- Calendário **interno**; **NÃO** mencione Google Calendar/iCloud/Outlook.
+- Timezone padrão: **America/Sao_Paulo**. Interprete datas relativas nesse fuso.
+- Se o usuário não informar duração, assuma **60 minutos**.
+- Para pedidos vagos, peça esclarecimentos antes de agir.
+- Quando resumir o que fez, cite missa, local e escala de acólitos confirmada.
 
-### Ações suportadas
-{"schedule":{"action":"create","title":"Missa","start":"2025-09-26T15:00:00-03:00","end":"2025-09-26T16:00:00-03:00","location":"Igreja","description":"...","timeZone":"America/Sao_Paulo"}}
-{"schedule":{"action":"create","title":"Ensaio","rrule":{"freq":"weekly","byweekday":["tu"],"dtstart":"2025-09-30T19:00:00-03:00","until":"2025-11-30T23:59:59-03:00"},"duration":"PT45M","location":"Sala 2","description":"...","timeZone":"America/Sao_Paulo"}}
-{"schedule":{"action":"update","id":"abc123","start":"2025-09-27T09:30:00-03:00","end":"2025-09-27T10:00:00-03:00","title":"Missa curta"}}
-{"schedule":{"action":"move","title":"Missa","deltaMinutes":30}}
-{"schedule":{"action":"delete","id":"abc123"}}
-{"schedule":{"action":"delete","title":"Missa de 7h"}}
-{"schedule":{"action":"delete","id":"ALL"}}
+### Ações suportadas (exemplos)
+{"schedule":{"action":"create","title":"Missa no Divino","start":"2025-09-27T19:30:00-03:00","end":"2025-09-27T20:30:00-03:00","location":"Igreja do Divino","acolytes":[{"role":"LIB","name":"Fábio"},{"role":"CER","name":"Eloá"}]}}
+{"schedule":{"action":"update","title":"Missa do Terço","start":"2025-09-28T18:00:00-03:00","end":"2025-09-28T19:00:00-03:00","acolytes":[{"role":"CRU","name":"Rafael"},{"role":"NAV","name":"Bruna"}]}}
+{"schedule":{"action":"move","title":"Missa do Domingo","deltaMinutes":30}}
+{"schedule":{"action":"delete","title":"Missa das 7h"}}
 {"availability":{"durationMinutes":45,"windowStart":"2025-09-27T08:00:00-03:00","windowEnd":"2025-09-27T20:00:00-03:00","count":3}}
 
 ### Formato
-- Datas ISO-8601 com timezone. Durações como ISO 8601 (p.ex. "PT30M") ou minutos.
+- Datas em ISO-8601 com timezone. Durações podem ser ISO 8601 ("PT30M") ou minutos.
 - **Nunca** escreva JSON em listas ou parágrafos; sempre use bloco \`\`\`json.
 - Se nada for agendado/alterado, **não** escreva blocos JSON.
 
-Responda **sempre em português** e seja objetivo e confirmatório.
+Responda **sempre em português**, de forma objetiva e confirmatória.
 `.trim();
+
 
     let history = [ { role: "system", content: SYSTEM_PROMPT } ];
 
@@ -591,21 +1243,33 @@ Responda **sempre em português** e seja objetivo e confirmatório.
 
       if (action === 'delete' && (s.id === 'ALL' || s.id === '*' || s.title === 'ALL' || s.title === '*')){
         calendar.getEvents().forEach(e => e.remove());
-        saveEvents(); showToast('Todos os eventos foram removidos.');
+        saveEvents();
+        clearEventDetails();
+        showToast('Todas as missas foram removidas.');
         return;
       }
       if (action === 'delete' && s.id && s.id !== 'ALL' && s.id !== '*'){
         const ev = calendar.getEventById(s.id);
-        if (ev){ ev.remove(); saveEvents(); showToast('Evento removido.'); }
-        else { showToast('Evento não encontrado para remoção.', 'err'); }
+        if (ev){
+          const wasSelected = selectedEvent && selectedEvent.id === ev.id;
+          ev.remove();
+          saveEvents();
+          if (wasSelected) clearEventDetails();
+          showToast('Missa removida.');
+        } else { showToast('Evento não encontrado para remoção.', 'err'); }
         return;
       }
       if (action === 'delete' && s.title && !s.id){
         let removed = 0;
         calendar.getEvents().forEach(e => {
-          if ((e.title || '').toLowerCase().includes(String(s.title).toLowerCase())) { e.remove(); removed++; }
+          if ((e.title || '').toLowerCase().includes(String(s.title).toLowerCase())) {
+            const wasSelected = selectedEvent && selectedEvent.id === e.id;
+            e.remove();
+            if (wasSelected) clearEventDetails();
+            removed++;
+          }
         });
-        saveEvents(); showToast(`${removed} evento(s) removido(s).`);
+        saveEvents(); showToast(`${removed} missa(s) removida(s).`);
         return;
       }
 
@@ -620,7 +1284,10 @@ Responda **sempre em português** e seja objetivo e confirmatório.
           if (end) end.setMinutes(end.getMinutes() + delta);
           ev.setDates(start, end, { maintainDuration: !end });
         });
-        saveEvents(); showToast(`${targets.length} evento(s) movido(s) em ${delta} minutos.`);
+        if (selectedEvent && targets.some(ev => ev.id === selectedEvent.id)){
+          showEventDetails(selectedEvent);
+        }
+        saveEvents(); showToast(`${targets.length} missa(s) movida(s) em ${delta} minutos.`);
         return;
       }
 
@@ -633,16 +1300,28 @@ Responda **sempre em português** e seja objetivo e confirmatório.
           if (s.title && !s.id) ev.setProp('title', s.title);
           if (start) ev.setStart(start);
           if (end || start) ev.setEnd(end || null);
-          if (s.location || s.description){
-            ev.setExtendedProp('location', s.location || ev.extendedProps?.location);
-            ev.setExtendedProp('description', s.description || ev.extendedProps?.description);
+          if (s.location !== undefined){
+            ev.setExtendedProp('location', s.location || '');
+          }
+          if (s.description !== undefined){
+            ev.setExtendedProp('description', s.description || '');
+          }
+          if (s.acolytes !== undefined){
+            ev.setExtendedProp('acolytes', normalizeAcolytes(s.acolytes));
           }
         });
+        if (selectedEvent && targets.some(ev => ev.id === selectedEvent.id)){
+          showEventDetails(selectedEvent);
+        }
         saveEvents(); showToast(`${targets.length} evento(s) atualizado(s).`);
         return;
       }
 
       if (action === 'create'){
+        const title = s.massName || s.title || 'Missa';
+        const location = s.location || '';
+        const description = s.description || '';
+        const acolytes = normalizeAcolytes(s.acolytes);
         if (s.rrule){
           let duration = s.duration || s.durationISO || s.durationMinutes;
           if (typeof duration === 'number') duration = `PT${Math.max(1, duration)}M`;
@@ -650,14 +1329,15 @@ Responda **sempre em português** e seja objetivo e confirmatório.
             const ms = new Date(s.end) - new Date(s.start);
             duration = `PT${Math.round(ms/60000)}M`;
           }
-          const evt = {
-            title: s.title || 'Evento',
+          const evt = prepareEventInput({
+            id: s.id || undefined,
+            title,
             rrule: s.rrule,
             duration,
-            extendedProps: { description: s.description || '', location: s.location || '', duration }
-          };
+            extendedProps: { description, location, acolytes, duration }
+          });
           calendar.addEvent(evt);
-          saveEvents(); showToast('Evento recorrente criado.');
+          saveEvents(); showToast('Missa recorrente criada.');
           return;
         } else {
           const start = isoOrDate(s.start);
@@ -669,13 +1349,18 @@ Responda **sempre em português** e seja objetivo e confirmatório.
             d.setMinutes(d.getMinutes() + mins);
             end = d;
           }
-          addEvent({
+          const created = addEvent({
             id: s.id || undefined,
-            title: s.title || 'Evento',
+            title,
             start, end,
-            extendedProps: { description: s.description || '', location: s.location || '' }
+            extendedProps: { description, location, acolytes }
           });
-          showToast('Evento criado.');
+          if (created){
+            selectedEvent = created;
+            selectedEventId = created.id;
+            showEventDetails(created);
+          }
+          showToast('Missa criada.');
           return;
         }
       }

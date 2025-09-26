@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <title>iAcoli</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- rrule + FullCalendar -->
+  <script src="https://cdn.jsdelivr.net/npm/rrule@2.8.1/dist/es5/rrule.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.19/locales-all.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/rrule@6.1.19/index.global.min.js"></script>
+
+  <style>
+    /* ========= Design tokens (tema claro, sóbrio) ========= */
+    :root{
+      /* Cores base (neutras) */
+      --bg: #f7f7f8;
+      --surface: #ffffff;
+      --surface-2: #fafafa;
+      --border: #e6e7eb;
+      --text: #111827;
+      --muted: #6b7280;
+      --muted-2: #9ca3af;
+
+      /* Acento discreto (azul levemente dessaturado) */
+      --accent: #3a5ccc;          /* ação/foco */
+      --accent-ink: #0f172a;      /* texto sobre superfícies claras */
+      --accent-50: #eef2ff;       /* hover/fundo suave */
+      --accent-200: #c7d2fe;      /* bordas em foco suave */
+
+      /* Estado */
+      --ok: #256f4a;
+      --ok-bg: #edf7f1;
+      --warn: #8a6a1f;
+      --warn-bg: #f9f5e6;
+      --danger: #7f1d1d;
+      --danger-bg: #fbebeb;
+
+      /* Raio e sombra discretos */
+      --radius: 12px;
+      --shadow-1: 0 1px 2px rgba(0,0,0,.06);
+      --shadow-2: 0 2px 6px rgba(0,0,0,.06);
+
+      /* Tipografia & espaçamento */
+      --font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans";
+      --h1: 16px;
+      --space-1: 6px;
+      --space-2: 10px;
+      --space-3: 14px;
+      --space-4: 18px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--text); font:var(--font);
+      display:flex; flex-direction:column;
+    }
+
+    /* ========= Header ========= */
+    header{
+      position:sticky; top:0; z-index:10;
+      background:var(--surface);
+      border-bottom:1px solid var(--border);
+      box-shadow:var(--shadow-1);
+      padding: var(--space-3) var(--space-4);
+      display:flex; align-items:center; justify-content:space-between; gap: var(--space-3);
+    }
+    h1{font-size:var(--h1); margin:0; letter-spacing:.2px; font-weight:700}
+    .bar{display:flex; flex-wrap:wrap; gap: var(--space-2); align-items:center}
+    .field{
+      display:flex; align-items:center; gap: var(--space-2);
+      background:var(--surface-2); padding:8px 10px; border-radius:10px; border:1px solid var(--border);
+    }
+    .field label{color:var(--muted); font-size:12px; white-space:nowrap}
+    .field input[type="password"], .field input[type="text"], .field select{
+      background:transparent; border:none; color:var(--text); outline:none; min-width:180px; font:inherit;
+    }
+
+    /* ========= Botões ========= */
+    .btn{
+      border:1px solid var(--border);
+      background:var(--surface);
+      color:var(--accent-ink);
+      padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:600;
+      box-shadow:var(--shadow-1);
+      transition: background .15s ease, border-color .15s ease, transform .03s ease;
+    }
+    .btn:hover{ background:var(--surface-2) }
+    .btn:active{ transform:translateY(1px) }
+    .btn.primary{
+      background:var(--accent); color:white; border-color:transparent; box-shadow:var(--shadow-2);
+    }
+    .btn.primary:hover{ background:#334fb2 }
+    .btn.ghost{ background:transparent; }
+    .btn.danger{ color:var(--danger); border-color:#eed2d2; background:#fff }
+    .btn.danger:hover{ background:#fff5f5 }
+
+    .mini{padding:6px 10px; font-weight:600}
+
+    /* ========= Layout principal ========= */
+    main{flex:1; display:grid; grid-template-columns: minmax(360px, 520px) 1fr; gap: var(--space-3); padding: var(--space-3); min-height:0}
+    @media (max-width: 1000px){ main{grid-template-columns:1fr; grid-auto-rows: minmax(340px, auto);} }
+
+    .panel{
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      min-height:0; display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--shadow-1);
+    }
+    .panel .title{
+      padding:10px 12px; border-bottom:1px solid var(--border); color:var(--muted); font-weight:700; letter-spacing:.2px;
+      display:flex; align-items:center; justify-content:space-between; gap:8px
+    }
+
+    /* ========= Chat ========= */
+    #chat{display:flex; flex-direction:column; height:100%}
+    #messages{
+      flex:1; overflow:auto; padding: var(--space-3); display:flex; flex-direction:column; gap: var(--space-2);
+      scrollbar-width: thin; scrollbar-color: #d6d8dd transparent;
+      background:var(--surface);
+    }
+    #messages::-webkit-scrollbar{ width:10px }
+    #messages::-webkit-scrollbar-track{ background:transparent }
+    #messages::-webkit-scrollbar-thumb{ background:#d6d8dd; border:2px solid transparent; background-clip:padding-box; border-radius:999px }
+
+    .bubble{
+      max-width:92%; padding:10px 12px; border-radius:12px; border:1px solid var(--border); white-space:pre-wrap; word-break:break-word;
+      background:#fff;
+    }
+    .user{ align-self:flex-end; background:#f3f4f6 }
+    .bot{ align-self:flex-start; background:#ffffff }
+    .meta{ font-size:11px; color:var(--muted); margin-bottom:6px }
+
+    .inputRow{
+      display:flex; gap:8px; padding:10px; border-top:1px solid var(--border); background:var(--surface-2)
+    }
+    .inputRow textarea{
+      flex:1; resize:none; min-height:54px; max-height:120px; padding:10px; border-radius:10px; border:1px solid var(--border); outline:none;
+      background:#fff; color:var(--text); font:inherit; scrollbar-width:none; -ms-overflow-style:none;
+    }
+    .inputRow textarea::-webkit-scrollbar{ display:none }
+
+    /* ========= Calendário ========= */
+    #calendar{flex:1; min-height:400px; background:#fff}
+    /* FullCalendar: tema neutro e coerente */
+    .fc .fc-toolbar-title{ font-size:14px; font-weight:700; color:var(--accent-ink) }
+    .fc .fc-button{
+      background:#fff; border:1px solid var(--border); color:var(--accent-ink); border-radius:8px; padding:5px 10px;
+    }
+    .fc .fc-button-primary:not(:disabled).fc-button-active,
+    .fc .fc-button-primary:not(:disabled):active,
+    .fc .fc-button-primary:hover{
+      background:var(--surface-2); border-color:var(--border); color:var(--accent-ink);
+    }
+    .fc-theme-standard td, .fc-theme-standard th{ border-color:var(--border) }
+    .fc .fc-daygrid-day-number{ color:var(--muted); font-weight:600 }
+    .fc .fc-col-header-cell-cushion{ color:var(--muted); }
+    .fc .fc-day-today{ background: #f0f4ff !important }
+    .fc-event, .fc-event:hover{
+      background:#eef2ff; border:1px solid var(--accent-200); color:var(--accent-ink); border-radius:6px; padding:2px 4px
+    }
+    .fc-list{
+      --fc-list-event-hover-bg-color: #f9fafb;
+    }
+
+    /* ========= details/sources ========= */
+    details{margin-top:8px; border-top:1px dashed var(--border); padding-top:8px}
+    details summary{cursor:pointer; color:var(--accent-ink); font-size:12px}
+    details pre{background:#fafafa; border:1px solid var(--border); border-radius:8px; padding:10px; overflow:auto}
+    code, pre code{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px}
+    code.inline{background:#f3f4f6; border:1px solid var(--border); border-radius:6px; padding:2px 5px}
+    .sources{margin-top:8px; font-size:12px; color:var(--muted)}
+    .sources a{color:var(--accent-ink); text-decoration:underline}
+
+    .slot-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+    .slot{padding:6px 8px; border-radius:8px; border:1px solid var(--border); font-size:12px; background:#fff}
+
+    /* ========= Toast ========= */
+    .toast{
+      position:fixed; right:14px; bottom:14px; background:#fff; color:var(--accent-ink);
+      padding:10px 12px; border:1px solid var(--border); border-left:4px solid var(--ok);
+      border-radius:10px; display:none; z-index:20; box-shadow:var(--shadow-2)
+    }
+    .toast.err{ border-left-color: var(--danger); background: var(--danger-bg) }
+
+    /* ========= Acessibilidade: focos consistentes ========= */
+    .btn:focus-visible,
+    .field input:focus-visible,
+    .field select:focus-visible,
+    .inputRow textarea:focus-visible{
+      outline:2px solid color-mix(in oklab, var(--accent) 55%, transparent); outline-offset:2px;
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      *{scroll-behavior:auto}
+      .btn{transition:none}
+    }
+  </style>
+</head>
+<body>
+  <header aria-label="Barra superior">
+    <h1>iAcoli</h1>
+    <div class="bar" role="group" aria-label="Preferências">
+      <div class="field" title="Sua chave NUNCA deve ir para produção no front-end">
+        <label for="apiKey">Chave:</label>
+        <input id="apiKey" type="password" placeholder="pplx-..." autocomplete="off" />
+        <button id="reveal" class="btn ghost mini" type="button" aria-pressed="false" aria-controls="apiKey">ver</button>
+      </div>
+      <div class="field">
+        <label for="model">Modelo:</label>
+        <select id="model" aria-label="Modelo">
+          <option value="sonar" selected>sonar (leve)</option>
+          <option value="sonar-pro">sonar-pro (pesquisa avançada)</option>
+          <option value="sonar-reasoning-pro">sonar-reasoning-pro</option>
+          <option value="sonar-reasoning">sonar-reasoning</option>
+          <option value="sonar-deep-research">sonar-deep-research</option>
+        </select>
+      </div>
+      <div class="bar">
+        <button id="testBtn" class="btn mini" type="button">Testar API</button>
+        <button id="clearChat" class="btn danger mini" type="button">Limpar chat</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" id="chat" aria-label="Chat">
+      <div class="title"><span>Chat — iAcoli</span></div>
+      <div id="messages" aria-live="polite" aria-atomic="false"></div>
+      <div class="inputRow">
+        <label for="input" class="sr-only" aria-hidden="true" style="position:absolute;left:-9999px;">Mensagem</label>
+        <textarea id="input" placeholder="Escreva aqui... (ex.: Agende amanhã às 15h por 1 hora com a Ana)" aria-label="Mensagem para o agente"></textarea>
+        <button id="send" class="btn primary" type="button">Enviar</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Calendário">
+      <div class="title">Calendário</div>
+      <div id="calendar"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // ======= Prevenir erros de recursos bloqueados =======
+    window.addEventListener('error', function(e) {
+      if (e.target && e.target.src && e.target.src.includes('googlesyndication')) {
+        e.preventDefault(); return false;
+      }
+    }, true);
+
+    // ======= Estado & Persistência =======
+    const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo';
+    const AGENT_NAME = 'iAcoli';
+
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+    const apiKeyEl = document.getElementById('apiKey');
+    const revealBtn = document.getElementById('reveal');
+    const modelEl = document.getElementById('model');
+    const testBtn = document.getElementById('testBtn');
+    const clearChatBtn = document.getElementById('clearChat');
+    const toast = document.getElementById('toast');
+
+    const SETTINGS = {
+      get apiKey(){ return localStorage.getItem('pplx_api_key') || ''; },
+      set apiKey(v){ localStorage.setItem('pplx_api_key', v || ''); },
+      get model(){ return localStorage.getItem('pplx_model') || 'sonar'; },
+      set model(v){ localStorage.setItem('pplx_model', v || 'sonar'); },
+    };
+
+    const STORE = {
+      get events(){ try { return JSON.parse(localStorage.getItem('events_v2')||'[]'); } catch { return []; } },
+      set events(v){ localStorage.setItem('events_v2', JSON.stringify(v)); }
+    };
+
+    function showToast(msg, kind='ok'){
+      toast.textContent = msg;
+      toast.classList.toggle('err', kind!=='ok');
+      toast.style.display = 'block';
+      setTimeout(()=> toast.style.display='none', 3600);
+    }
+
+    // ======= FullCalendar =======
+    let calendar;
+    document.addEventListener('DOMContentLoaded', () => {
+      // Restaurar preferências
+      apiKeyEl.value = SETTINGS.apiKey;
+      modelEl.value = SETTINGS.model;
+
+      // Auto-resize do textarea
+      const autosize = () => {
+        inputEl.style.height = '0px';
+        inputEl.style.height = Math.min(120, Math.max(54, inputEl.scrollHeight)) + 'px';
+      };
+      inputEl.addEventListener('input', autosize); autosize();
+
+      const calEl = document.getElementById('calendar');
+      calendar = new FullCalendar.Calendar(calEl, {
+        locale: 'pt-br',
+        timeZone: 'local',
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+        },
+        selectable: true,
+        selectMirror: true,
+        nowIndicator: true,
+        height: '100%',
+        select: (selInfo) => {
+          const title = prompt('Título do evento:');
+          if (title) {
+            addEvent({ title, start: selInfo.start, end: selInfo.end, allDay: selInfo.allDay, description: 'Criado manualmente' });
+            showToast('Evento criado no calendário.');
+          }
+          calendar.unselect();
+        },
+        eventClick: (info) => {
+          const action = prompt('Editar título (ou deixe vazio para excluir):', info.event.title);
+          if (action === null) return;
+          if (action.trim() === '') {
+            info.event.remove();
+            saveEvents();
+            showToast('Evento removido.');
+          } else {
+            info.event.setProp('title', action.trim());
+            saveEvents();
+            showToast('Evento atualizado.');
+          }
+        },
+        events: STORE.events
+      });
+      calendar.render();
+
+      // Mensagem inicial
+      pushBot(
+`Olá! Sou o **${AGENT_NAME}**, seu agente de agenda. Escreva normalmente e eu:
+1) respondo em texto claro;
+2) e, se houver ações, emitirei blocos JSON de agenda (expanda “detalhes” para ver).`
+      );
+    });
+
+    function addEvent(evt){
+      if (!evt.end && evt.start) {
+        const end = new Date(evt.start instanceof Date ? evt.start : evt.start + '');
+        end.setMinutes(end.getMinutes() + (evt.durationMin || 60));
+        evt.end = end;
+      }
+      calendar.addEvent(evt);
+      saveEvents();
+    }
+
+    function saveEvents(){
+      const arr = calendar.getEvents().map(e => {
+        const base = {
+          id: e.id,
+          title: e.title,
+          allDay: e.allDay,
+          extendedProps: e.extendedProps
+        };
+        const defs = e._def || {};
+        const rrule = defs.recurringDef?.typeData?.rruleStr || defs.recurringDef?.typeData?.rrule;
+        if (rrule){
+          base.rrule = defs.recurringDef.typeData.rrule || defs.recurringDef.typeData.rruleStr;
+          base.duration = defs.recurringDef.typeData.duration || e.extendedProps?.duration;
+        } else {
+          base.start = e.start;
+          base.end = e.end;
+        }
+        return base;
+      });
+      STORE.events = arr;
+    }
+
+    // ======= Chat UI =======
+    function pushUser(text){
+      const wrap = document.createElement('div');
+      wrap.className = 'bubble user';
+      wrap.innerHTML = `<div class="meta">Você • ${new Date().toLocaleString('pt-BR')}</div>${escapeHtml(text)}`;
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function makeDetails({raw, actions, sources}) {
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      const count = (actions?.schedules?.length || 0) + (actions?.availability?.length || 0);
+      summary.textContent = `detalhes${count ? ` • ${count} ação(ões)` : ''}`;
+      details.appendChild(summary);
+
+      if (actions?.availability?.length){
+        const av = actions.availability[0];
+        const slots = computeAvailability(av);
+        const h = document.createElement('div');
+        h.className = 'slot-list';
+        slots.slice(0, av.count || 3).forEach(s => {
+          const pill = document.createElement('div');
+          pill.className = 'slot';
+          pill.textContent = new Date(s.start).toLocaleString('pt-BR') + ` (${Math.round((s.end - s.start)/60000)} min)`;
+          h.appendChild(pill);
+        });
+        details.appendChild(h);
+      }
+
+      if (actions?.schedules?.length){
+        const pre = document.createElement('pre');
+        pre.innerHTML = `<code>${escapeHtml(JSON.stringify(actions.schedules, null, 2))}</code>`;
+        details.appendChild(pre);
+      }
+
+      if (raw){
+        const preRaw = document.createElement('pre');
+        preRaw.innerHTML = `<code>${escapeHtml(raw)}</code>`;
+        details.appendChild(preRaw);
+      }
+
+      if (sources?.length){
+        const src = document.createElement('div');
+        src.className = 'sources';
+        src.innerHTML = `<strong>Fontes:</strong> ` + sources.map(s => `<a target="_blank" href="${s.url}">${escapeHtml(s.title||s.url)}</a>`).join(' • ');
+        details.appendChild(src);
+      }
+
+      if (actions?.schedules?.length){
+        const btn = document.createElement('button');
+        btn.className = 'btn mini ghost';
+        btn.textContent = 'Copiar JSON de ações';
+        btn.onclick = () => {
+          navigator.clipboard.writeText(JSON.stringify(actions.schedules, null, 2));
+          showToast('JSON copiado.');
+        };
+        details.appendChild(btn);
+      }
+
+      return details;
+    }
+
+    function pushBot(visibleText, opts={}){
+      const wrap = document.createElement('div');
+      wrap.className = 'bubble bot';
+      let html = `<div class="meta">${AGENT_NAME} • ${new Date().toLocaleString('pt-BR')}</div>${mdToHtml(visibleText || '')}`;
+      wrap.innerHTML = html;
+
+      if (opts.details) {
+        wrap.appendChild(makeDetails(opts.details));
+      }
+
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // ======= Chamada Perplexity =======
+    const SYSTEM_PROMPT = `
+Você é o **Agente de Agenda da Paróquia**. Sua função é entender pedidos em PT-BR e operar o **calendário interno** exibido na tela.
+
+### Saída (contrato rígido)
+1) **Primeiro**, escreva uma mensagem curta, clara e humana (sem JSON embutido).
+2) **Depois**, se houver ações, emita **um ou mais blocos** \`\`\`json ... \`\`\` contendo SOMENTE ações:
+   - Um bloco por ação. Não use arrays para múltiplas ações; escreva vários blocos.
+   - Não misture explicações dentro dos JSONs.
+3) Para **agenda**, use o objeto **{"schedule": {...}}**.
+4) Para **consultar disponibilidade**, use **{"availability": {...}}**.
+5) Não produza blocos JSON se não houver ação.
+
+### Regras gerais
+- Calendário **INTERNAL**; **NÃO** mencione Google Calendar/iCloud/Outlook.
+- Timezone padrão: **America/Sao_Paulo**. Interprete datas relativas (hoje/amanhã/segunda) nesse fuso.
+- Ao inferir duração, se o usuário não disser, use **60 minutos**.
+- Para “remarcar”, manter descrição/local/participantes quando plausível.
+- IDs podem ser omitidos se não conhecidos; use filtros por título quando necessário.
+
+### Ações suportadas
+{"schedule":{"action":"create","title":"Missa","start":"2025-09-26T15:00:00-03:00","end":"2025-09-26T16:00:00-03:00","location":"Igreja","description":"...","timeZone":"America/Sao_Paulo"}}
+{"schedule":{"action":"create","title":"Ensaio","rrule":{"freq":"weekly","byweekday":["tu"],"dtstart":"2025-09-30T19:00:00-03:00","until":"2025-11-30T23:59:59-03:00"},"duration":"PT45M","location":"Sala 2","description":"...","timeZone":"America/Sao_Paulo"}}
+{"schedule":{"action":"update","id":"abc123","start":"2025-09-27T09:30:00-03:00","end":"2025-09-27T10:00:00-03:00","title":"Missa curta"}}
+{"schedule":{"action":"move","title":"Missa","deltaMinutes":30}}
+{"schedule":{"action":"delete","id":"abc123"}}
+{"schedule":{"action":"delete","title":"Missa de 7h"}}
+{"schedule":{"action":"delete","id":"ALL"}}
+{"availability":{"durationMinutes":45,"windowStart":"2025-09-27T08:00:00-03:00","windowEnd":"2025-09-27T20:00:00-03:00","count":3}}
+
+### Formato
+- Datas ISO-8601 com timezone. Durações como ISO 8601 (p.ex. "PT30M") ou minutos.
+- **Nunca** escreva JSON em listas ou parágrafos; sempre use bloco \`\`\`json.
+- Se nada for agendado/alterado, **não** escreva blocos JSON.
+
+Responda **sempre em português** e seja objetivo e confirmatório.
+`.trim();
+
+    let history = [ { role: "system", content: SYSTEM_PROMPT } ];
+
+    async function callPerplexity(userText){
+      const key = (apiKeyEl.value || '').trim();
+      if (!key){ showToast('Cole sua chave da Perplexity no topo.', 'err'); throw new Error('Chave ausente'); }
+      const model = modelEl.value || 'sonar';
+
+      const body = {
+        model,
+        messages: [...history, { role: "user", content: userText }],
+        temperature: 0.2
+      };
+
+      const resp = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!resp.ok){
+        const txt = await resp.text();
+        throw new Error(`Erro API (${resp.status}): ${txt}`);
+      }
+      return resp.json();
+    }
+
+    // ======= Parser de respostas =======
+    function extractJsonFences(text){
+      const fences = [];
+      const regex = /```(?:json|jsonc)?\s*([\s\S]*?)\s*```/gi;
+      let m;
+      while ((m = regex.exec(text)) !== null) {
+        const raw = m[1].trim();
+        fences.push(raw);
+      }
+      return fences;
+    }
+    function tryParseJson(str){
+      try { return JSON.parse(str); } catch { return null; }
+    }
+    function extractInlineJsonByKey(text, key){
+      const results = [];
+      let idx = 0;
+      while ((idx = text.indexOf(`"${key}"`, idx)) !== -1) {
+        let start = text.lastIndexOf('{', idx);
+        if (start === -1) { idx += key.length; continue; }
+        let depth = 0, i = start;
+        for (; i < text.length; i++) {
+          const ch = text[i];
+          if (ch === '{') depth++;
+          else if (ch === '}') {
+            depth--;
+            if (depth === 0) { 
+              const jsonStr = text.slice(start, i+1);
+              const obj = tryParseJson(jsonStr);
+              if (obj && obj[key]) results.push(obj);
+              break;
+            }
+          }
+        }
+        if (i >= text.length) break;
+        idx = i + 1;
+      }
+      return results;
+    }
+    function splitVisibleFromActions(raw){
+      const fences = extractJsonFences(raw);
+      const parsedFromFences = fences.map(tryParseJson).filter(Boolean);
+
+      let visible = raw.replace(/```(?:json|jsonc)?\s*([\s\S]*?)\s*```/gi, '').trim();
+
+      const inlineSchedules = extractInlineJsonByKey(visible, 'schedule');
+      const inlineAvail = extractInlineJsonByKey(visible, 'availability');
+
+      visible = visible
+        .replace(/\{[^{}]*"schedule"[^{}]*\{[\s\S]*?\}[\s\S]*?\}/g, '')
+        .replace(/\{[^{}]*"availability"[^{}]*\{[\s\S]*?\}[\s\S]*?\}/g, '')
+        .trim();
+
+      const actions = { schedules: [], availability: [] };
+      const allParsed = [...parsedFromFences, ...inlineSchedules, ...inlineAvail];
+      allParsed.forEach(p => { if (Array.isArray(p)) p.forEach(x => collectAction(x, actions)); else collectAction(p, actions); });
+
+      return { visibleText: visible, actions, raw };
+    }
+    function collectAction(obj, actions){
+      if (!obj || typeof obj !== 'object') return;
+      if (obj.schedule) actions.schedules.push(obj);
+      if (obj.availability) actions.availability.push(obj.availability);
+    }
+
+    // ======= Execução das ações =======
+    function isoOrDate(v){ return v ? new Date(v) : null; }
+
+    function applyScheduleAction(schedObj){
+      const s = schedObj.schedule || {};
+      const action = (s.action || 'create').toLowerCase();
+
+      if (action === 'delete' && (s.id === 'ALL' || s.id === '*' || s.title === 'ALL' || s.title === '*')){
+        calendar.getEvents().forEach(e => e.remove());
+        saveEvents(); showToast('Todos os eventos foram removidos.');
+        return;
+      }
+      if (action === 'delete' && s.id && s.id !== 'ALL' && s.id !== '*'){
+        const ev = calendar.getEventById(s.id);
+        if (ev){ ev.remove(); saveEvents(); showToast('Evento removido.'); }
+        else { showToast('Evento não encontrado para remoção.', 'err'); }
+        return;
+      }
+      if (action === 'delete' && s.title && !s.id){
+        let removed = 0;
+        calendar.getEvents().forEach(e => {
+          if ((e.title || '').toLowerCase().includes(String(s.title).toLowerCase())) { e.remove(); removed++; }
+        });
+        saveEvents(); showToast(`${removed} evento(s) removido(s).`);
+        return;
+      }
+
+      if (action === 'move' && (s.id || s.title) && s.deltaMinutes){
+        const delta = Number(s.deltaMinutes) || 0;
+        const targets = findEventsByIdOrTitle(s.id, s.title);
+        if (!targets.length){ showToast('Nenhum evento encontrado para mover.', 'err'); return; }
+        targets.forEach(ev => {
+          const start = new Date(ev.start);
+          const end = ev.end ? new Date(ev.end) : null;
+          start.setMinutes(start.getMinutes() + delta);
+          if (end) end.setMinutes(end.getMinutes() + delta);
+          ev.setDates(start, end, { maintainDuration: !end });
+        });
+        saveEvents(); showToast(`${targets.length} evento(s) movido(s) em ${delta} minutos.`);
+        return;
+      }
+
+      if (action === 'update' && (s.id || s.title)){
+        const targets = findEventsByIdOrTitle(s.id, s.title);
+        if (!targets.length){ showToast('Nenhum evento encontrado para atualizar.', 'err'); return; }
+        const start = isoOrDate(s.start);
+        const end = isoOrDate(s.end);
+        targets.forEach(ev => {
+          if (s.title && !s.id) ev.setProp('title', s.title);
+          if (start) ev.setStart(start);
+          if (end || start) ev.setEnd(end || null);
+          if (s.location || s.description){
+            ev.setExtendedProp('location', s.location || ev.extendedProps?.location);
+            ev.setExtendedProp('description', s.description || ev.extendedProps?.description);
+          }
+        });
+        saveEvents(); showToast(`${targets.length} evento(s) atualizado(s).`);
+        return;
+      }
+
+      if (action === 'create'){
+        if (s.rrule){
+          let duration = s.duration || s.durationISO || s.durationMinutes;
+          if (typeof duration === 'number') duration = `PT${Math.max(1, duration)}M`;
+          if (!duration && s.start && s.end){
+            const ms = new Date(s.end) - new Date(s.start);
+            duration = `PT${Math.round(ms/60000)}M`;
+          }
+          const evt = {
+            title: s.title || 'Evento',
+            rrule: s.rrule,
+            duration,
+            extendedProps: { description: s.description || '', location: s.location || '', duration }
+          };
+          calendar.addEvent(evt);
+          saveEvents(); showToast('Evento recorrente criado.');
+          return;
+        } else {
+          const start = isoOrDate(s.start);
+          let end = isoOrDate(s.end);
+          if (!start){ showToast('Criação ignorada: "start" ausente.', 'err'); return; }
+          if (!end){
+            const d = new Date(start);
+            const mins = Number(s.durationMinutes) || parseIsoDurationToMinutes(s.duration) || 60;
+            d.setMinutes(d.getMinutes() + mins);
+            end = d;
+          }
+          addEvent({
+            id: s.id || undefined,
+            title: s.title || 'Evento',
+            start, end,
+            extendedProps: { description: s.description || '', location: s.location || '' }
+          });
+          showToast('Evento criado.');
+          return;
+        }
+      }
+      if (action === 'list'){ return; }
+    }
+
+    function findEventsByIdOrTitle(id, title){
+      if (id){
+        const ev = calendar.getEventById(id);
+        return ev ? [ev] : [];
+      }
+      if (title){
+        return calendar.getEvents().filter(e => (e.title||'').toLowerCase().includes(String(title).toLowerCase()));
+      }
+      return [];
+    }
+
+    function parseIsoDurationToMinutes(iso){
+      if (!iso || typeof iso !== 'string') return 0;
+      const m = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/i);
+      if (!m) return 0;
+      const h = parseInt(m[1]||'0',10), mi = parseInt(m[2]||'0',10), s = parseInt(m[3]||'0',10);
+      return h*60 + mi + Math.round(s/60);
+    }
+
+    function computeAvailability(av){
+      const duration = Number(av.durationMinutes) || 60;
+      const start = av.windowStart ? new Date(av.windowStart) : new Date();
+      const end = av.windowEnd ? new Date(av.windowEnd) : new Date(start.getTime() + 24*60*60000);
+
+      const events = calendar.getEvents().map(e => ({ start: e.start, end: e.end || new Date(e.start.getTime()+60*60000) }))
+        .filter(e => e.start < end && e.end > start)
+        .sort((a,b) => a.start - b.start);
+
+      const merged = [];
+      for (const ev of events){
+        if (!merged.length || ev.start > merged[merged.length-1].end){
+          merged.push({start: new Date(ev.start), end: new Date(ev.end)});
+        } else {
+          merged[merged.length-1].end = new Date(Math.max(merged[merged.length-1].end, ev.end));
+        }
+      }
+
+      const slots = [];
+      let cur = new Date(start);
+      for (const busy of merged){
+        if (busy.start - cur >= duration*60000){
+          slots.push({ start: new Date(cur), end: new Date(cur.getTime()+duration*60000) });
+        }
+        cur = new Date(Math.max(cur, busy.end));
+        if (slots.length >= (av.count || 3)) break;
+      }
+      while (cur < end && slots.length < (av.count || 3)){
+        if (end - cur >= duration*60000){
+          slots.push({ start: new Date(cur), end: new Date(cur.getTime()+duration*60000) });
+        }
+        break;
+      }
+      return slots;
+    }
+
+    async function onSend(){
+      const text = inputEl.value.trim();
+      if (!text) return;
+      inputEl.value = ''; inputEl.dispatchEvent(new Event('input'));
+
+      pushUser(text);
+      sendBtn.disabled = true; sendBtn.textContent = 'Enviando…';
+
+      try {
+        const data = await callPerplexity(text);
+        const choice = data?.choices?.[0];
+        const content = choice?.message?.content || '(sem conteúdo)';
+        const sources = (data?.search_results || []).slice(0,5);
+
+        history.push({ role: 'user', content: text });
+        history.push({ role: 'assistant', content });
+
+        const { visibleText, actions, raw } = splitVisibleFromActions(content);
+
+        if (actions?.schedules?.length){
+          let created = 0;
+          actions.schedules.forEach(s => {
+            applyScheduleAction(s);
+            const a = (s.schedule?.action||'').toLowerCase();
+            if (a === 'create') created++;
+          });
+          if (created > 0) showToast(`${created} criação(ões) processada(s).`);
+        }
+
+        pushBot(visibleText || 'Entendido ✅', { details: { raw, actions, sources } });
+
+      } catch (err){
+        console.error(err);
+        pushBot(`Desculpe, houve um erro ao falar com a API.\n\nDetalhes: ${err.message}`);
+        showToast('Falha na chamada à API. Veja a mensagem no chat.', 'err');
+      } finally {
+        sendBtn.disabled = false; sendBtn.textContent = 'Enviar';
+      }
+    }
+
+    // ======= Controles =======
+    sendBtn.addEventListener('click', onSend);
+    inputEl.addEventListener('keydown', (e)=>{ if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onSend(); }});
+
+    revealBtn.addEventListener('click', ()=>{
+      const showing = apiKeyEl.type !== 'password';
+      apiKeyEl.type = showing ? 'password' : 'text';
+      revealBtn.textContent = showing ? 'ver' : 'ocultar';
+      revealBtn.setAttribute('aria-pressed', String(!showing));
+    });
+
+    testBtn.addEventListener('click', async ()=>{
+      try{
+        const data = await callPerplexity('Responda apenas: OK');
+        const txt = data?.choices?.[0]?.message?.content || '';
+        showToast('API respondeu: ' + txt.slice(0,40));
+      }catch(e){
+        showToast('Teste falhou: ' + e.message, 'err');
+      }
+    });
+
+    clearChatBtn.addEventListener('click', ()=>{
+      if (!confirm('Limpar o chat? O calendário será mantido.')) return;
+      messagesEl.innerHTML = '';
+      history = [{ role: 'system', content: SYSTEM_PROMPT }];
+      pushBot('Chat limpo. Como posso ajudar?');
+    });
+
+    apiKeyEl.addEventListener('blur', ()=> {
+      SETTINGS.apiKey = apiKeyEl.value.trim();
+      if (SETTINGS.apiKey) showToast('Chave salva localmente (localStorage).');
+    });
+    modelEl.addEventListener('change', ()=> {
+      SETTINGS.model = modelEl.value;
+      showToast(`Modelo definido: ${modelEl.value}`);
+    });
+
+    // ======= Utils =======
+    function escapeHtml(s){ return (s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+    function mdToHtml(s){
+      const esc = escapeHtml(s || '');
+      let out = esc.replace(/```([\s\S]*?)```/g, (m, code)=> `<pre><code>${code}</code></pre>`);
+      out = out.replace(/`([^`]+)`/g,'<code class="inline">$1</code>');
+      out = out
+        .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g,'<em>$1</em>')
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a target="_blank" href="$2">$1</a>')
+        .replace(/\n/g,'<br/>');
+      return out;
+    }
+  </script>
+</body>
+</html>

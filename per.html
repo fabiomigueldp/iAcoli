@@ -107,6 +107,10 @@
       background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
       min-height:0; display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--shadow-1);
     }
+    .panel.calendar-panel{
+      overflow:visible;
+      position:relative;
+    }
     .panel .title{
       padding:10px 12px; border-bottom:1px solid var(--border); color:var(--muted); font-weight:700; letter-spacing:.2px;
       display:flex; align-items:center; justify-content:space-between; gap:8px
@@ -154,6 +158,7 @@
       background: var(--surface);
       min-height:0;
       align-items:stretch;
+      position:relative;
     }
     #calendar{
       min-height:420px;
@@ -161,6 +166,7 @@
       border-radius: var(--radius);
       border:1px solid var(--border);
       overflow:hidden;
+      position:relative;
     }
     #eventDetails{
       background: var(--surface-2);
@@ -289,7 +295,7 @@
       text-overflow:ellipsis;
       line-height:1.3;
     }
-    .event-card .event-time{
+    .event-card .event-meta{
       font-size:11px;
       color: var(--muted);
       display:-webkit-box;
@@ -297,37 +303,63 @@
       -webkit-box-orient:vertical;
       overflow:hidden;
       text-overflow:ellipsis;
+      line-height:1.3;
     }
-    .event-card .event-location{
-      font-size:11px;
-      color: var(--muted-2);
-      display:-webkit-box;
-      -webkit-line-clamp:1;
-      -webkit-box-orient:vertical;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .event-card .event-acolytes{
+    .day-overlay{
+      position:absolute;
+      z-index:25;
+      min-width:240px;
+      max-width:300px;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow:var(--shadow-2);
+      padding:12px;
       display:flex;
-      flex-wrap:wrap;
-      gap:4px;
+      flex-direction:column;
+      gap: var(--space-2);
     }
-    .event-card .acolyte-pill{
-      display:inline-flex;
-      align-items:center;
-      gap:4px;
-      padding:2px 6px;
-      border-radius:999px;
-      border:1px solid var(--accent-200);
-      background:#fff;
-      font-size:11px;
-      color: var(--accent-ink);
-      white-space:nowrap;
+    .day-overlay[hidden]{display:none;}
+    .day-overlay-head{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
     }
-    .event-card .acolyte-pill.more{
-      background:var(--accent);
-      color:#fff;
-      border-color:var(--accent);
+    .day-overlay-date{
+      font-weight:700; font-size:13px; color: var(--accent-ink); line-height:1.3;
+    }
+    .day-overlay-close{
+      border:none; background:transparent; color: var(--muted); padding:4px; border-radius:8px; cursor:pointer;
+    }
+    .day-overlay-close:hover{
+      background:var(--surface-2); color: var(--accent-ink);
+    }
+    .day-overlay-list{
+      display:flex; flex-direction:column; gap:8px;
+      max-height:260px; overflow:auto; padding-right:2px;
+    }
+    .day-overlay-item{
+      display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+      border:1px solid var(--border); background:var(--surface-2); border-radius:10px;
+      padding:8px 10px; width:100%; cursor:pointer;
+      transition:border-color .15s ease, background .15s ease;
+    }
+    .day-overlay-item:hover{
+      border-color: var(--accent-200); background: var(--accent-50);
+    }
+    .day-overlay-item:focus-visible{
+      outline:2px solid color-mix(in oklab, var(--accent) 55%, transparent); outline-offset:2px;
+    }
+    .day-overlay-item .item-title{
+      font-weight:600; font-size:13px; color: var(--accent-ink);
+    }
+    .day-overlay-item .item-meta{
+      font-size:12px; color: var(--muted);
+    }
+    .day-overlay-item .item-foot{
+      font-size:12px; color: var(--muted-2);
+    }
+    .fc .day-overlay-target{
+      box-shadow: inset 0 0 0 2px rgba(58,92,204,.22);
+      border-radius:8px;
     }
     .fc .fc-daygrid-event,
     .fc .fc-timegrid-event{
@@ -459,6 +491,13 @@
       <div class="title">Calendário</div>
       <div class="calendarShell">
         <div id="calendar" aria-label="Agenda"></div>
+        <div id="dayOverlay" class="day-overlay" role="dialog" aria-modal="false" aria-live="polite" hidden>
+          <div class="day-overlay-head">
+            <div class="day-overlay-date" id="dayOverlayDate">Eventos</div>
+            <button type="button" id="dayOverlayClose" class="day-overlay-close" aria-label="Fechar lista de eventos">&times;</button>
+          </div>
+          <div class="day-overlay-list" id="dayOverlayList"></div>
+        </div>
         <aside id="eventDetails" aria-live="polite">
           <div class="event-details-empty" role="note">Selecione uma missa no calendário.</div>
           <div class="event-details-content" hidden>
@@ -516,6 +555,10 @@
     const detailAcolytesEl = document.getElementById('detailAcolytes');
     const editEventBtn = document.getElementById('editEvent');
     const deleteEventBtn = document.getElementById('deleteEvent');
+    const dayOverlayEl = document.getElementById('dayOverlay');
+    const dayOverlayDateEl = document.getElementById('dayOverlayDate');
+    const dayOverlayListEl = document.getElementById('dayOverlayList');
+    const dayOverlayCloseBtn = document.getElementById('dayOverlayClose');
 
     const SETTINGS = {
       get apiKey(){ return localStorage.getItem('pplx_api_key') || ''; },
@@ -644,6 +687,18 @@
       }).join(', ');
     }
 
+    function summarizeAcolytes(acolytes){
+      if (!acolytes || !acolytes.length) return '';
+      const parts = acolytes.slice(0, 2).map(item => {
+        const meta = ACOLYTE_ROLES[item.role] || {};
+        return `${meta.short || item.role}: ${item.name}`;
+      });
+      if (acolytes.length > 2){
+        parts.push(`+${acolytes.length - 2}`);
+      }
+      return parts.join(', ');
+    }
+
     function showToast(msg, kind='ok'){
       toast.textContent = msg;
       toast.classList.toggle('err', kind!=='ok');
@@ -656,6 +711,7 @@
     let calendarEl = null;
     let selectedEvent = null;
     let selectedEventId = null;
+    let overlayTargetDayFrame = null;
     document.addEventListener('DOMContentLoaded', () => {
       // Restaurar preferências
       apiKeyEl.value = SETTINGS.apiKey;
@@ -683,19 +739,34 @@
         selectMirror: true,
         nowIndicator: true,
         height: '100%',
+        dayMaxEvents: true,
+        dayMaxEventRows: 3,
+        moreLinkContent: (args) => `+${args.num} mais`,
+        moreLinkClick: (info) => {
+          if (info.jsEvent) {
+            info.jsEvent.preventDefault();
+            info.jsEvent.stopPropagation();
+          }
+          openDayOverlay(info);
+          return false;
+        },
         events: storedEvents,
         eventContent: renderEventContent,
         eventDidMount: handleEventDidMount,
         select: (selInfo) => {
+          closeDayOverlay();
           openEventCreator(selInfo);
           calendar.unselect();
         },
         eventClick: (info) => {
           if (info.jsEvent) info.jsEvent.preventDefault();
+          closeDayOverlay();
           selectedEvent = info.event;
           selectedEventId = info.event.id;
           showEventDetails(info.event);
-        }
+          updateEventSelection();
+        },
+        datesSet: () => closeDayOverlay()
       });
       calendar.render();
       clearEventDetails();
@@ -706,6 +777,7 @@
             showToast('Selecione uma missa para editar.', 'err');
             return;
           }
+          closeDayOverlay();
           openEventEditor(selectedEvent);
         });
       }
@@ -716,6 +788,7 @@
             return;
           }
           if (!confirm('Remover esta missa do calendário?')) return;
+          closeDayOverlay();
           selectedEvent.remove();
           saveEvents();
           clearEventDetails();
@@ -730,6 +803,13 @@
 2) gero ações de calendário quando necessário;
 3) mantenho nome da missa, local e a escala de acólitos (LIB, CAM, CRU, CER, TUR, NAV, MIC).`
       );
+
+      if (dayOverlayCloseBtn){
+        dayOverlayCloseBtn.addEventListener('click', closeDayOverlay);
+      }
+      document.addEventListener('click', handleDocumentClick);
+      document.addEventListener('keydown', handleDocumentKeydown);
+      window.addEventListener('resize', closeDayOverlay);
     });
 
     function addEvent(evt){
@@ -780,41 +860,18 @@
       card.appendChild(title);
 
       const timeText = formatEventTimeShort(arg.event);
-      if (timeText){
-        const timeEl = document.createElement('div');
-        timeEl.className = 'event-time';
-        timeEl.textContent = timeText;
-        card.appendChild(timeEl);
-      }
-
-      const location = arg.event.extendedProps?.location;
-      if (location){
-        const locEl = document.createElement('div');
-        locEl.className = 'event-location';
-        locEl.textContent = location;
-        card.appendChild(locEl);
-      }
-
+      const location = arg.event.extendedProps?.location || '';
       const acolytes = normalizeAcolytes(arg.event.extendedProps?.acolytes);
-      if (acolytes.length){
-        const wrap = document.createElement('div');
-        wrap.className = 'event-acolytes';
-        const max = Math.min(3, acolytes.length);
-        for (let i = 0; i < max; i++){
-          const item = acolytes[i];
-          const pill = document.createElement('span');
-          pill.className = 'acolyte-pill';
-          const meta = ACOLYTE_ROLES[item.role] || {};
-          pill.textContent = `${meta.short || item.role}: ${item.name}`;
-          wrap.appendChild(pill);
-        }
-        if (acolytes.length > 3){
-          const more = document.createElement('span');
-          more.className = 'acolyte-pill more';
-          more.textContent = `+${acolytes.length - 3}`;
-          wrap.appendChild(more);
-        }
-        card.appendChild(wrap);
+      const infoParts = [];
+      if (timeText) infoParts.push(timeText);
+      if (location) infoParts.push(location);
+      const acolyteSummary = summarizeAcolytes(acolytes);
+      if (acolyteSummary) infoParts.push(acolyteSummary);
+      if (infoParts.length){
+        const metaEl = document.createElement('div');
+        metaEl.className = 'event-meta';
+        metaEl.textContent = infoParts.join(' • ');
+        card.appendChild(metaEl);
       }
 
       return { domNodes: [card] };
@@ -828,6 +885,8 @@
       const timeText = formatEventTimeShort(arg.event);
       if (timeText) tooltipParts.push(timeText);
       if (arg.event.extendedProps?.location) tooltipParts.push(arg.event.extendedProps.location);
+      const acolyteSummary = summarizeAcolytes(normalizeAcolytes(arg.event.extendedProps?.acolytes));
+      if (acolyteSummary) tooltipParts.push(`Acólitos: ${acolyteSummary}`);
       if (tooltipParts.length) arg.el.setAttribute('title', tooltipParts.join(' • '));
       arg.el.classList.toggle('is-selected', !!selectedEventId && arg.event.id === selectedEventId);
     }
@@ -850,25 +909,176 @@
       return `${fmt.format(start)} → ${fmt.format(end)}`;
     }
 
-    function capitalize(str){
-      if (!str) return '';
-      return str.charAt(0).toUpperCase() + str.slice(1);
+    function formatWeekdayDayMonth(date){
+      if (!date) return '';
+      const weekday = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' }).format(date);
+      const day = new Intl.DateTimeFormat('pt-BR', { day: '2-digit' }).format(date);
+      const month = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(date);
+      return `${weekday}, ${day} de ${month}`;
     }
 
     function formatEventDateRange(event){
       if (!event || !event.start) return '';
-      const dateFmt = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
       const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
       const start = event.start;
       const end = event.end;
-      const startLabel = capitalize(dateFmt.format(start));
+      const startLabel = formatWeekdayDayMonth(start);
       if (event.allDay) return `${startLabel} • dia inteiro`;
       if (!end || start.getTime() === end.getTime()) return `${startLabel} • ${timeFmt.format(start)}`;
       if (start.toDateString() === end.toDateString()){
         return `${startLabel} • ${timeFmt.format(start)} – ${timeFmt.format(end)}`;
       }
-      const endLabel = capitalize(dateFmt.format(end));
+      const endLabel = formatWeekdayDayMonth(end);
       return `${startLabel} ${timeFmt.format(start)} → ${endLabel} ${timeFmt.format(end)}`;
+    }
+
+    function formatCountPt(count, singular, plural){
+      if (count === 1) return `1 ${singular}`;
+      return `${count} ${plural || singular + 's'}`;
+    }
+
+    function formatActionsCount(count){
+      if (!count) return '';
+      return formatCountPt(count, 'ação', 'ações');
+    }
+
+    function closeDayOverlay(){
+      if (!dayOverlayEl || dayOverlayEl.hidden) return;
+      dayOverlayEl.hidden = true;
+      dayOverlayEl.style.visibility = 'hidden';
+      dayOverlayEl.setAttribute('aria-hidden', 'true');
+      if (overlayTargetDayFrame){
+        overlayTargetDayFrame.classList.remove('day-overlay-target');
+        overlayTargetDayFrame = null;
+      }
+    }
+
+    function handleDocumentClick(e){
+      if (!dayOverlayEl || dayOverlayEl.hidden) return;
+      if (dayOverlayEl.contains(e.target)) return;
+      if (e.target.closest && e.target.closest('.fc-daygrid-more-link')) return;
+      closeDayOverlay();
+    }
+
+    function handleDocumentKeydown(e){
+      if (e.key === 'Escape') closeDayOverlay();
+    }
+
+    function openDayOverlay(info){
+      if (!dayOverlayEl || !calendarEl) return;
+      const eventsMap = new Map();
+      (info.segs || []).forEach(seg => {
+        if (seg && seg.event && !eventsMap.has(seg.event.id)){
+          eventsMap.set(seg.event.id, seg.event);
+        }
+      });
+      const events = Array.from(eventsMap.values()).sort((a, b) => {
+        const startA = a.start ? a.start.getTime() : 0;
+        const startB = b.start ? b.start.getTime() : 0;
+        return startA - startB;
+      });
+      if (!events.length){
+        closeDayOverlay();
+        return;
+      }
+
+      const baseDate = info.date || events[0].start || new Date();
+      if (dayOverlayDateEl){
+        dayOverlayDateEl.textContent = formatWeekdayDayMonth(baseDate);
+      }
+      dayOverlayEl.setAttribute('aria-label', `Missas de ${formatWeekdayDayMonth(baseDate)}`);
+
+      if (dayOverlayListEl){
+        dayOverlayListEl.innerHTML = '';
+        events.forEach(event => {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'day-overlay-item';
+
+          const title = document.createElement('div');
+          title.className = 'item-title';
+          title.textContent = event.title || 'Missa';
+          item.appendChild(title);
+
+          const timeRow = document.createElement('div');
+          timeRow.className = 'item-meta';
+          timeRow.textContent = formatEventTimeShort(event) || 'Horário não definido';
+          item.appendChild(timeRow);
+
+          const metaParts = [];
+          const location = event.extendedProps?.location;
+          if (location) metaParts.push(location);
+          const acolyteSummary = summarizeAcolytes(normalizeAcolytes(event.extendedProps?.acolytes));
+          if (acolyteSummary) metaParts.push(acolyteSummary);
+          if (metaParts.length){
+            const foot = document.createElement('div');
+            foot.className = 'item-foot';
+            foot.textContent = metaParts.join(' • ');
+            item.appendChild(foot);
+          }
+
+          item.addEventListener('click', () => {
+            selectedEvent = event;
+            selectedEventId = event.id;
+            showEventDetails(event);
+            updateEventSelection();
+            calendar.gotoDate(event.start);
+            closeDayOverlay();
+          });
+
+          dayOverlayListEl.appendChild(item);
+        });
+      }
+
+      dayOverlayEl.hidden = false;
+      dayOverlayEl.setAttribute('aria-hidden', 'false');
+      dayOverlayEl.style.visibility = 'hidden';
+      dayOverlayEl.style.transform = 'translate(0px, 0px)';
+
+      const calendarRect = calendarEl.getBoundingClientRect();
+      const shellEl = calendarEl.parentElement || calendarEl;
+      const shellRect = shellEl.getBoundingClientRect();
+      const dayRect = info.dayEl.getBoundingClientRect();
+      let overlayRect = dayOverlayEl.getBoundingClientRect();
+      const padding = 8;
+      const calendarLeft = calendarRect.left - shellRect.left;
+      const calendarRight = calendarLeft + calendarRect.width;
+      const calendarBottom = calendarRect.top - shellRect.top + calendarRect.height;
+
+      const maxListHeight = Math.max(180, calendarRect.height - 96);
+      if (dayOverlayListEl){
+        dayOverlayListEl.style.maxHeight = `${maxListHeight}px`;
+        overlayRect = dayOverlayEl.getBoundingClientRect();
+      }
+
+      let left = dayRect.left - shellRect.left + dayRect.width / 2 - overlayRect.width / 2;
+      if (left + overlayRect.width > calendarRight - padding){
+        left = calendarRight - overlayRect.width - padding;
+      }
+      if (left < calendarLeft + padding){
+        left = calendarLeft + padding;
+      }
+
+      let top = dayRect.top - shellRect.top + dayRect.height + 8;
+      if (top + overlayRect.height > calendarBottom - padding){
+        top = dayRect.top - shellRect.top - overlayRect.height - 8;
+        if (top < padding){
+          top = Math.max(padding, calendarBottom - overlayRect.height - padding);
+        }
+      }
+
+      dayOverlayEl.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+      dayOverlayEl.style.visibility = 'visible';
+
+      if (overlayTargetDayFrame){
+        overlayTargetDayFrame.classList.remove('day-overlay-target');
+      }
+      overlayTargetDayFrame = info.dayEl.querySelector('.fc-daygrid-day-frame') || info.dayEl;
+      overlayTargetDayFrame.classList.add('day-overlay-target');
+
+      if (dayOverlayCloseBtn){
+        dayOverlayCloseBtn.focus();
+      }
     }
 
     function populateAcolyteDetails(acolytes){
@@ -929,6 +1139,7 @@
     }
 
     function clearEventDetails(){
+      closeDayOverlay();
       if (eventDetailsEmptyEl) eventDetailsEmptyEl.hidden = false;
       if (eventDetailsContentEl) eventDetailsContentEl.hidden = true;
       if (detailTitleEl) detailTitleEl.textContent = 'Missa';
@@ -1073,7 +1284,8 @@
       const details = document.createElement('details');
       const summary = document.createElement('summary');
       const count = (actions?.schedules?.length || 0) + (actions?.availability?.length || 0);
-      summary.textContent = `detalhes${count ? ` • ${count} ação(ões)` : ''}`;
+      const countLabel = formatActionsCount(count);
+      summary.textContent = `detalhes${countLabel ? ` • ${countLabel}` : ''}`;
       details.appendChild(summary);
 
       if (actions?.availability?.length){
@@ -1319,7 +1531,14 @@ Responda **sempre em português**, de forma objetiva e confirmatória.
             removed++;
           }
         });
-        saveEvents(); showToast(`${removed} missa(s) removida(s).`);
+        saveEvents();
+        if (removed === 0){
+          showToast('Nenhuma missa removida.');
+        } else if (removed === 1){
+          showToast('1 missa removida.');
+        } else {
+          showToast(`${removed} missas removidas.`);
+        }
         return;
       }
 
@@ -1337,7 +1556,13 @@ Responda **sempre em português**, de forma objetiva e confirmatória.
         if (selectedEvent && targets.some(ev => ev.id === selectedEvent.id)){
           showEventDetails(selectedEvent);
         }
-        saveEvents(); showToast(`${targets.length} missa(s) movida(s) em ${delta} minutos.`);
+        saveEvents();
+        const absDelta = Math.abs(delta);
+        const minuteLabel = absDelta === 1 ? 'minuto' : 'minutos';
+        const direction = delta > 0 ? 'para frente' : (delta < 0 ? 'para trás' : '');
+        const moveLabel = targets.length === 1 ? 'Missa movida' : `${targets.length} missas movidas`;
+        const suffix = direction ? ` ${direction}` : '';
+        showToast(`${moveLabel} em ${absDelta} ${minuteLabel}${suffix}.`);
         return;
       }
 
@@ -1363,7 +1588,9 @@ Responda **sempre em português**, de forma objetiva e confirmatória.
         if (selectedEvent && targets.some(ev => ev.id === selectedEvent.id)){
           showEventDetails(selectedEvent);
         }
-        saveEvents(); showToast(`${targets.length} evento(s) atualizado(s).`);
+        saveEvents();
+        const msg = targets.length === 1 ? 'Evento atualizado.' : `${targets.length} eventos atualizados.`;
+        showToast(msg);
         return;
       }
 
@@ -1498,7 +1725,10 @@ Responda **sempre em português**, de forma objetiva e confirmatória.
             const a = (s.schedule?.action||'').toLowerCase();
             if (a === 'create') created++;
           });
-          if (created > 0) showToast(`${created} criação(ões) processada(s).`);
+          if (created > 0){
+            const msg = created === 1 ? 'Criação processada.' : `${created} criações processadas.`;
+            showToast(msg);
+          }
         }
 
         pushBot(visibleText || 'Entendido ✅', { details: { raw, actions, sources } });

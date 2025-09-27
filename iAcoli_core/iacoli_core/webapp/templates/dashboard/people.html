@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-users me-2"></i>
+                Gerenciar Pessoas
+            </h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPersonModal">
+                <i class="fas fa-plus me-2"></i>
+                Adicionar Pessoa
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de pessoas -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>
+                    Lista de Pessoas ({{ people|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if people %}
+                <div class="table-responsive">
+                    <table class="table table-striped" id="people-table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Comunidade</th>
+                                <th>Funções</th>
+                                <th>Status</th>
+                                <th>Manhã</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for person in people %}
+                            <tr data-person-id="{{ person.id }}">
+                                <td>
+                                    <strong>{{ person.name }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ person.community }}</span>
+                                </td>
+                                <td>
+                                    {% if person.roles %}
+                                        {% for role in person.roles %}
+                                            <span class="badge bg-info me-1">{{ role }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted">Nenhuma</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if person.active %}
+                                        <span class="badge bg-success">Ativo</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inativo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if person.morning %}
+                                        <i class="fas fa-sun text-warning" title="Prefere manhã"></i>
+                                    {% else %}
+                                        <i class="fas fa-moon text-secondary" title="Não prefere manhã"></i>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="editPerson('{{ person.id }}')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="deletePerson('{{ person.id }}', '{{ person.name }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5>Nenhuma pessoa cadastrada</h5>
+                    <p class="text-muted">Clique no botão "Adicionar Pessoa" para começar.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para adicionar pessoa -->
+<div class="modal fade" id="addPersonModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Adicionar Nova Pessoa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addPersonForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="personName" class="form-label">Nome *</label>
+                        <input type="text" class="form-control" id="personName" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="personCommunity" class="form-label">Comunidade *</label>
+                        <input type="text" class="form-control" id="personCommunity" name="community" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="personRoles" class="form-label">Funções (separadas por vírgula)</label>
+                        <input type="text" class="form-control" id="personRoles" name="roles" 
+                               placeholder="Ex: acólito, leitor, cantor">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="personMorning" name="morning">
+                                <label class="form-check-label" for="personMorning">
+                                    Prefere horários matutinos
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="personActive" name="active" checked>
+                                <label class="form-check-label" for="personActive">
+                                    Pessoa ativa
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para editar pessoa -->
+<div class="modal fade" id="editPersonModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Pessoa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editPersonForm">
+                <input type="hidden" id="editPersonId">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editPersonName" class="form-label">Nome *</label>
+                        <input type="text" class="form-control" id="editPersonName" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editPersonCommunity" class="form-label">Comunidade *</label>
+                        <input type="text" class="form-control" id="editPersonCommunity" name="community" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editPersonRoles" class="form-label">Funções (separadas por vírgula)</label>
+                        <input type="text" class="form-control" id="editPersonRoles" name="roles">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editPersonMorning" name="morning">
+                                <label class="form-check-label" for="editPersonMorning">
+                                    Prefere horários matutinos
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editPersonActive" name="active">
+                                <label class="form-check-label" for="editPersonActive">
+                                    Pessoa ativa
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Atualizar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Adicionar nova pessoa
+document.getElementById('addPersonForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const roles = formData.get('roles') ? formData.get('roles').split(',').map(r => r.trim()) : [];
+    
+    const data = {
+        name: formData.get('name'),
+        community: formData.get('community'),
+        roles: roles,
+        morning: formData.has('morning'),
+        active: formData.has('active')
+    };
+    
+    try {
+        const response = await fetch('/api/people/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            // Fechar modal e recarregar página
+            bootstrap.Modal.getInstance(document.getElementById('addPersonModal')).hide();
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Erro ao adicionar pessoa: ' + error.detail);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao adicionar pessoa. Verifique a conexão.');
+    }
+});
+
+// Editar pessoa
+async function editPerson(personId) {
+    try {
+        const response = await fetch(`/api/people/${personId}`);
+        const person = await response.json();
+        
+        document.getElementById('editPersonId').value = person.id;
+        document.getElementById('editPersonName').value = person.name;
+        document.getElementById('editPersonCommunity').value = person.community;
+        document.getElementById('editPersonRoles').value = person.roles.join(', ');
+        document.getElementById('editPersonMorning').checked = person.morning;
+        document.getElementById('editPersonActive').checked = person.active;
+        
+        new bootstrap.Modal(document.getElementById('editPersonModal')).show();
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao carregar dados da pessoa.');
+    }
+}
+
+// Atualizar pessoa
+document.getElementById('editPersonForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const personId = document.getElementById('editPersonId').value;
+    const formData = new FormData(e.target);
+    const roles = formData.get('roles') ? formData.get('roles').split(',').map(r => r.trim()) : [];
+    
+    const data = {
+        name: formData.get('name'),
+        community: formData.get('community'),
+        roles: roles,
+        morning: formData.has('morning'),
+        active: formData.has('active')
+    };
+    
+    try {
+        const response = await fetch(`/api/people/${personId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('editPersonModal')).hide();
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Erro ao atualizar pessoa: ' + error.detail);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao atualizar pessoa. Verifique a conexão.');
+    }
+});
+
+// Deletar pessoa
+async function deletePerson(personId, personName) {
+    if (!confirm(`Tem certeza que deseja remover "${personName}"? Esta ação não pode ser desfeita.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/people/${personId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Erro ao remover pessoa: ' + error.detail);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao remover pessoa. Verifique a conexão.');
+    }
+}
+</script>
+{% endblock %}

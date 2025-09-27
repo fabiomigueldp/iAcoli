@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-cog me-2"></i>
+            Configurações do Sistema
+        </h1>
+    </div>
+</div>
+
+<!-- Configurações Gerais -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-sliders-h me-2"></i>
+                    Configurações Gerais
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="generalConfigForm">
+                    <div class="mb-3">
+                        <label for="timezone" class="form-label">Fuso Horário</label>
+                        <input type="text" class="form-control" id="timezone" name="timezone" 
+                               value="{{ config.general.timezone }}" readonly>
+                        <small class="form-text text-muted">Ex: America/Sao_Paulo</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="default_view_days" class="form-label">Dias de Visualização Padrão</label>
+                        <input type="number" class="form-control" id="default_view_days" name="default_view_days" 
+                               value="{{ config.general.default_view_days }}" min="1" max="365">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="name_width" class="form-label">Largura do Nome (caracteres)</label>
+                        <input type="number" class="form-control" id="name_width" name="name_width" 
+                               value="{{ config.general.name_width }}" min="10" max="50">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="overlap_minutes" class="form-label">Minutos de Sobreposição</label>
+                        <input type="number" class="form-control" id="overlap_minutes" name="overlap_minutes" 
+                               value="{{ config.general.overlap_minutes }}" min="0" max="180">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="default_locale" class="form-label">Localização Padrão</label>
+                        <select class="form-select" id="default_locale" name="default_locale">
+                            <option value="pt-BR" {{ 'selected' if config.general.default_locale == 'pt-BR' else '' }}>Português (Brasil)</option>
+                            <option value="en-US" {{ 'selected' if config.general.default_locale == 'en-US' else '' }}>English (US)</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Salvar Configurações Gerais
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-balance-scale me-2"></i>
+                    Configurações de Equidade
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="fairnessConfigForm">
+                    <div class="mb-3">
+                        <label for="fair_window_days" class="form-label">Janela de Equidade (dias)</label>
+                        <input type="number" class="form-control" id="fair_window_days" name="fair_window_days" 
+                               value="{{ config.fairness.fair_window_days }}" min="7" max="365">
+                        <small class="form-text text-muted">Período para calcular distribuição justa</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="role_rot_window_days" class="form-label">Rotação de Funções (dias)</label>
+                        <input type="number" class="form-control" id="role_rot_window_days" name="role_rot_window_days" 
+                               value="{{ config.fairness.role_rot_window_days }}" min="1" max="180">
+                        <small class="form-text text-muted">Intervalo para alternar entre funções</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="workload_tolerance" class="form-label">Tolerância de Carga</label>
+                        <input type="number" class="form-control" id="workload_tolerance" name="workload_tolerance" 
+                               value="{{ config.fairness.workload_tolerance }}" min="0" max="10">
+                        <small class="form-text text-muted">Diferença máxima de atribuições entre pessoas</small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-2"></i>Salvar Configurações de Equidade
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pesos do Algoritmo -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-weight me-2"></i>
+                    Pesos do Algoritmo de Atribuição
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="weightsConfigForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="load_balance" class="form-label">
+                                    Balanceamento de Carga
+                                    <span class="badge bg-primary">{{ config.weights.load_balance }}</span>
+                                </label>
+                                <input type="range" class="form-range" id="load_balance" name="load_balance" 
+                                       min="0" max="2" step="0.1" value="{{ config.weights.load_balance }}"
+                                       oninput="updateWeightDisplay('load_balance', this.value)">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="recency" class="form-label">
+                                    Recência (evitar repetição)
+                                    <span class="badge bg-primary">{{ config.weights.recency }}</span>
+                                </label>
+                                <input type="range" class="form-range" id="recency" name="recency" 
+                                       min="0" max="2" step="0.1" value="{{ config.weights.recency }}"
+                                       oninput="updateWeightDisplay('recency', this.value)">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="role_rotation" class="form-label">
+                                    Rotação de Funções
+                                    <span class="badge bg-primary">{{ config.weights.role_rotation }}</span>
+                                </label>
+                                <input type="range" class="form-range" id="role_rotation" name="role_rotation" 
+                                       min="0" max="2" step="0.1" value="{{ config.weights.role_rotation }}"
+                                       oninput="updateWeightDisplay('role_rotation', this.value)">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="morning_pref" class="form-label">
+                                    Preferência Matutina
+                                    <span class="badge bg-primary">{{ config.weights.morning_pref }}</span>
+                                </label>
+                                <input type="range" class="form-range" id="morning_pref" name="morning_pref" 
+                                       min="0" max="2" step="0.1" value="{{ config.weights.morning_pref }}"
+                                       oninput="updateWeightDisplay('morning_pref', this.value)">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="solene_bonus" class="form-label">
+                                    Bônus para Eventos Solenes
+                                    <span class="badge bg-primary">{{ config.weights.solene_bonus }}</span>
+                                </label>
+                                <input type="range" class="form-range" id="solene_bonus" name="solene_bonus" 
+                                       min="0" max="2" step="0.1" value="{{ config.weights.solene_bonus }}"
+                                       oninput="updateWeightDisplay('solene_bonus', this.value)">
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="fas fa-save me-2"></i>Salvar Pesos do Algoritmo
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" onclick="resetWeights()">
+                                    <i class="fas fa-undo me-2"></i>Restaurar Padrão
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Informações do Sistema -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Informações do Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>Versão</h6>
+                        <p class="text-muted">iAcoli Core v0.1.0</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Status da API</h6>
+                        <p><span class="badge bg-success">Operacional</span></p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Arquivos de Estado</h6>
+                        <p class="text-muted">
+                            <small>Config: {{ config.general.timezone }}</small><br>
+                            <small>Estado: Carregado com sucesso</small>
+                        </p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Ações de Manutenção</h6>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-info" onclick="backupState()">
+                                <i class="fas fa-download me-2"></i>Backup Estado
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="clearCache()">
+                                <i class="fas fa-broom me-2"></i>Limpar Cache
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Links Úteis</h6>
+                        <div class="btn-group">
+                            <a href="/docs" target="_blank" class="btn btn-outline-primary">
+                                <i class="fas fa-book me-2"></i>API Docs
+                            </a>
+                            <a href="/health" target="_blank" class="btn btn-outline-success">
+                                <i class="fas fa-heartbeat me-2"></i>Health Check
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Atualizar display do peso em tempo real
+function updateWeightDisplay(fieldName, value) {
+    const label = document.querySelector(`label[for="${fieldName}"] .badge`);
+    if (label) {
+        label.textContent = parseFloat(value).toFixed(1);
+    }
+}
+
+// Restaurar pesos padrão
+function resetWeights() {
+    if (!confirm('Restaurar todos os pesos para os valores padrão?')) return;
+    
+    const defaults = {
+        load_balance: 1.0,
+        recency: 0.5,
+        role_rotation: 0.3,
+        morning_pref: 0.2,
+        solene_bonus: 0.1
+    };
+    
+    Object.entries(defaults).forEach(([key, value]) => {
+        const input = document.getElementById(key);
+        if (input) {
+            input.value = value;
+            updateWeightDisplay(key, value);
+        }
+    });
+}
+
+// Salvar configurações gerais
+document.getElementById('generalConfigForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    await saveConfig('general', new FormData(e.target));
+});
+
+// Salvar configurações de equidade
+document.getElementById('fairnessConfigForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    await saveConfig('fairness', new FormData(e.target));
+});
+
+// Salvar pesos
+document.getElementById('weightsConfigForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    await saveConfig('weights', new FormData(e.target));
+});
+
+// Função genérica para salvar configurações
+async function saveConfig(section, formData) {
+    const data = {};
+    for (const [key, value] of formData.entries()) {
+        // Converter valores numéricos
+        const numValue = parseFloat(value);
+        data[key] = isNaN(numValue) ? value : numValue;
+    }
+    
+    try {
+        const response = await fetch('/api/config/', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [section]: data })
+        });
+        
+        if (response.ok) {
+            // Mostrar mensagem de sucesso
+            showAlert('Configurações salvas com sucesso!', 'success');
+        } else {
+            const error = await response.json();
+            showAlert('Erro ao salvar configurações: ' + error.detail, 'danger');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showAlert('Erro ao salvar configurações. Verifique a conexão.', 'danger');
+    }
+}
+
+// Mostrar alertas
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Remover após 5 segundos
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.parentNode.removeChild(alertDiv);
+        }
+    }, 5000);
+}
+
+// Backup do estado (placeholder)
+function backupState() {
+    alert('Funcionalidade de backup será implementada em breve!');
+}
+
+// Limpar cache (placeholder)
+function clearCache() {
+    if (confirm('Limpar o cache do sistema? Esta ação pode afetar a performance temporariamente.')) {
+        alert('Cache limpo com sucesso!');
+    }
+}
+</script>
+{% endblock %}

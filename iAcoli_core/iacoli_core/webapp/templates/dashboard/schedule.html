@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-list-alt me-2"></i>
+                Escala Atual
+            </h1>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="recalculateSchedule()">
+                    <i class="fas fa-sync me-2"></i>
+                    Recalcular Escala
+                </button>
+                <button class="btn btn-outline-primary" onclick="exportSchedule()">
+                    <i class="fas fa-download me-2"></i>
+                    Exportar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-filter me-2"></i>
+                    Filtros
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="filtersForm">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="filterPeriod" class="form-label">Período</label>
+                            <select class="form-select" id="filterPeriod" name="periodo">
+                                <option value="">Todos</option>
+                                <option value="hoje">Hoje</option>
+                                <option value="semana">Esta Semana</option>
+                                <option value="mes">Este Mês</option>
+                                <option value="proximo_mes">Próximo Mês</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="filterCommunity" class="form-label">Comunidade</label>
+                            <input type="text" class="form-control" id="filterCommunity" name="com" 
+                                   placeholder="Ex: São João, Nossa Senhora">
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="filterRoles" class="form-label">Funções</label>
+                            <input type="text" class="form-control" id="filterRoles" name="roles" 
+                                   placeholder="Ex: acólito, leitor">
+                        </div>
+                        
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search me-1"></i>Filtrar
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                                <i class="fas fa-times me-1"></i>Limpar
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Escala -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-calendar-check me-2"></i>
+                    Atribuições da Escala
+                </h5>
+                <span id="schedule-count" class="badge bg-secondary">{{ schedule|length }} itens</span>
+            </div>
+            <div class="card-body">
+                <div id="schedule-loading" class="text-center" style="display: none;">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                </div>
+                
+                <div id="schedule-content">
+                    {% if schedule %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="schedule-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Evento</th>
+                                    <th>Comunidade</th>
+                                    <th>Data</th>
+                                    <th>Horário</th>
+                                    <th>Função</th>
+                                    <th>Acólito</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in schedule %}
+                                <tr data-event="{{ item.event }}" data-role="{{ item.role }}">
+                                    <td><strong>{{ item.event }}</strong></td>
+                                    <td><span class="badge bg-secondary">{{ item.community }}</span></td>
+                                    <td>{{ item.data }}</td>
+                                    <td>{{ item.hora }}</td>
+                                    <td><span class="badge bg-info">{{ item.role }}</span></td>
+                                    <td>
+                                        {% if item.acolito != '-' %}
+                                            <strong>{{ item.acolito }}</strong>
+                                        {% else %}
+                                            <span class="text-danger">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                Não atribuído
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if item.acolito != '-' %}
+                                            <button class="btn btn-outline-warning" 
+                                                    onclick="clearAssignment('{{ item.event }}', '{{ item.role }}')">
+                                                <i class="fas fa-times" title="Limpar atribuição"></i>
+                                            </button>
+                                            {% endif %}
+                                            <button class="btn btn-outline-primary" 
+                                                    onclick="suggestCandidates('{{ item.event }}', '{{ item.role }}')">
+                                                <i class="fas fa-lightbulb" title="Sugerir candidatos"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                        <h5>Nenhuma atribuição encontrada</h5>
+                        <p class="text-muted">Crie eventos e pessoas, depois recalcule a escala.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para sugestões de candidatos -->
+<div class="modal fade" id="suggestionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Sugestões de Candidatos</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="suggestions-loading" class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Carregando sugestões...</span>
+                    </div>
+                </div>
+                <div id="suggestions-content" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Aplicar filtros na escala
+document.getElementById('filtersForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const params = new URLSearchParams();
+    
+    for (const [key, value] of formData.entries()) {
+        if (value.trim()) {
+            params.append(key, value);
+        }
+    }
+    
+    await loadSchedule(params);
+});
+
+// Carregar escala com filtros
+async function loadSchedule(params = new URLSearchParams()) {
+    const loading = document.getElementById('schedule-loading');
+    const content = document.getElementById('schedule-content');
+    
+    loading.style.display = 'block';
+    content.style.display = 'none';
+    
+    try {
+        const response = await fetch(`/api/schedule/?${params.toString()}`);
+        const schedule = await response.json();
+        
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        
+        // Atualizar contagem
+        document.getElementById('schedule-count').textContent = `${schedule.length} itens`;
+        
+        // Atualizar tabela
+        updateScheduleTable(schedule);
+        
+    } catch (error) {
+        console.error('Erro ao carregar escala:', error);
+        loading.style.display = 'none';
+        content.innerHTML = '<div class="alert alert-danger">Erro ao carregar escala. Verifique a conexão com a API.</div>';
+        content.style.display = 'block';
+    }
+}
+
+// Atualizar tabela da escala
+function updateScheduleTable(schedule) {
+    const table = document.getElementById('schedule-table');
+    const tbody = table.querySelector('tbody');
+    
+    if (schedule.length === 0) {
+        document.getElementById('schedule-content').innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                <h5>Nenhuma atribuição encontrada</h5>
+                <p class="text-muted">Tente ajustar os filtros ou recalcular a escala.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = schedule.map(item => `
+        <tr data-event="${item.event}" data-role="${item.role}">
+            <td><strong>${item.event}</strong></td>
+            <td><span class="badge bg-secondary">${item.community}</span></td>
+            <td>${item.data}</td>
+            <td>${item.hora}</td>
+            <td><span class="badge bg-info">${item.role}</span></td>
+            <td>
+                ${item.acolito !== '-' 
+                    ? `<strong>${item.acolito}</strong>` 
+                    : '<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Não atribuído</span>'
+                }
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    ${item.acolito !== '-' 
+                        ? `<button class="btn btn-outline-warning" onclick="clearAssignment('${item.event}', '${item.role}')">
+                               <i class="fas fa-times" title="Limpar atribuição"></i>
+                           </button>` 
+                        : ''
+                    }
+                    <button class="btn btn-outline-primary" onclick="suggestCandidates('${item.event}', '${item.role}')">
+                        <i class="fas fa-lightbulb" title="Sugerir candidatos"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Limpar filtros
+function clearFilters() {
+    document.getElementById('filtersForm').reset();
+    loadSchedule();
+}
+
+// Recalcular escala
+async function recalculateSchedule() {
+    if (!confirm('Tem certeza que deseja recalcular toda a escala? Isso pode alterar as atribuições existentes.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/schedule/recalculate', { method: 'POST' });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Erro ao recalcular escala: ' + error.detail);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao recalcular escala. Verifique a conexão.');
+    }
+}
+
+// Limpar atribuição específica
+async function clearAssignment(event, role) {
+    try {
+        const response = await fetch('/api/schedule/assignments/clear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event, role })
+        });
+        
+        if (response.ok) {
+            loadSchedule();
+        } else {
+            const error = await response.json();
+            alert('Erro ao limpar atribuição: ' + error.detail);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao limpar atribuição. Verifique a conexão.');
+    }
+}
+
+// Sugerir candidatos
+async function suggestCandidates(event, role) {
+    const modal = new bootstrap.Modal(document.getElementById('suggestionsModal'));
+    const loading = document.getElementById('suggestions-loading');
+    const content = document.getElementById('suggestions-content');
+    
+    loading.style.display = 'block';
+    content.style.display = 'none';
+    modal.show();
+    
+    try {
+        const response = await fetch('/api/schedule/suggestions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event, role, top: 10 })
+        });
+        
+        const suggestions = await response.json();
+        
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        
+        if (suggestions.length === 0) {
+            content.innerHTML = '<p class="text-muted">Nenhum candidato disponível para esta função.</p>';
+            return;
+        }
+        
+        let html = `
+            <h6>Candidatos sugeridos para "${role}" no evento "${event}":</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr><th>Nome</th><th>Comunidade</th><th>Score</th><th>Ação</th></tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        suggestions.forEach(suggestion => {
+            html += `
+                <tr>
+                    <td><strong>${suggestion.nome}</strong></td>
+                    <td><span class="badge bg-secondary">${suggestion.com}</span></td>
+                    <td><span class="badge bg-success">${suggestion.score.toFixed(2)}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" 
+                                onclick="assignPerson('${event}', '${role}', '${suggestion.person_id}')">
+                            <i class="fas fa-check me-1"></i>Atribuir
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+        content.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Erro:', error);
+        loading.style.display = 'none';
+        content.innerHTML = '<div class="alert alert-danger">Erro ao carregar sugestões.</div>';
+        content.style.display = 'block';
+    }
+}
+
+// Atribuir pessoa específica
+async function assignPerson(event, role, personId) {
+    try {
+        const response = await fetch('/api/schedule/assignments/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event, role, person_id: personId })
+        });
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('suggestionsModal')).hide();
+            loadSchedule();
+        } else {
+            const error = await response.json();
+            alert('Erro ao fazer atribuição: ' + error.detail);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao fazer atribuição. Verifique a conexão.');
+    }
+}
+
+// Exportar escala (placeholder)
+function exportSchedule() {
+    alert('Funcionalidade de exportação será implementada em breve!');
+}
+</script>
+{% endblock %}

@@ -64,11 +64,27 @@ def normalize_roles(values) -> set[str]:
 
 
 def normalize_community(value: str) -> str:
-    token = strip_diacritics(value.strip().upper())
-    token = COMMUNITY_ALIASES.get(token, token)
-    if token not in COMMUNITIES:
-        raise ValueError(f"Comunidade desconhecida: {value}")
-    return token
+    """Normaliza o nome da comunidade.
+    
+    Agora aceita qualquer comunidade, não apenas as pré-definidas.
+    Isso permite maior flexibilidade no cadastro de novas comunidades.
+    """
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError("Nome da comunidade não pode estar vazio")
+    
+    # Verifica se é um alias conhecido
+    token = strip_diacritics(normalized.upper())
+    if token in COMMUNITY_ALIASES:
+        return COMMUNITY_ALIASES[token]
+    
+    # Verifica se é uma comunidade conhecida (código)
+    if token in COMMUNITIES:
+        return token
+    
+    # Se não é conhecida, aceita como nova comunidade
+    # Mantém a formatação original fornecida pelo usuário
+    return normalized
 
 
 def new_id() -> UUID:

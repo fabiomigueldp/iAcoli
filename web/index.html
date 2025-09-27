@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <title>iAcoli</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- rrule + FullCalendar -->
+  <script src="https://cdn.jsdelivr.net/npm/rrule@2.8.1/dist/es5/rrule.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.19/locales-all.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/rrule@6.1.19/index.global.min.js"></script>
+  
+  <!-- Floating UI (UMD): core primeiro, depois dom -->
+  <script src="https://cdn.jsdelivr.net/npm/@floating-ui/core@1.6.9"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@floating-ui/dom@1.6.11"></script>
+
+  <style>
+    /* ========= Design tokens (tema claro, sóbrio) ========= */
+    :root{
+      /* Cores base (neutras) */
+      --bg: #f7f7f8;
+      --surface: #ffffff;
+      --surface-2: #fafafa;
+      --border: #e6e7eb;
+      --text: #111827;
+      --muted: #6b7280;
+      --muted-2: #9ca3af;
+
+      /* Acento discreto (azul levemente dessaturado) */
+      --accent: #3a5ccc;          /* ação/foco */
+      --accent-ink: #0f172a;      /* texto sobre superfícies claras */
+      --accent-50: #eef2ff;       /* hover/fundo suave */
+      --accent-200: #c7d2fe;      /* bordas em foco suave */
+
+      /* Estado */
+      --ok: #256f4a;
+      --ok-bg: #edf7f1;
+      --warn: #8a6a1f;
+      --warn-bg: #f9f5e6;
+      --danger: #7f1d1d;
+      --danger-bg: #fbebeb;
+
+      /* Raio e sombra discretos */
+      --radius: 12px;
+      --shadow-1: 0 1px 2px rgba(0,0,0,.06);
+      --shadow-2: 0 2px 6px rgba(0,0,0,.06);
+
+      /* Tipografia & espaçamento */
+      --font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans";
+      --h1: 16px;
+      --space-1: 6px;
+      --space-2: 10px;
+      --space-3: 14px;
+      --space-4: 18px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--text); font:var(--font);
+      display:flex; flex-direction:column;
+    }
+
+    /* ========= Header ========= */
+    header{
+      position:sticky; top:0; z-index:10;
+      background:var(--surface);
+      border-bottom:1px solid var(--border);
+      box-shadow:var(--shadow-1);
+      padding: var(--space-3) var(--space-4);
+      display:flex; align-items:center; justify-content:space-between; gap: var(--space-3);
+    }
+    h1{font-size:var(--h1); margin:0; letter-spacing:.2px; font-weight:700}
+    .bar{display:flex; flex-wrap:wrap; gap: var(--space-2); align-items:center}
+    .field{
+      display:flex; align-items:center; gap: var(--space-2);
+      background:var(--surface-2); padding:8px 10px; border-radius:10px; border:1px solid var(--border);
+    }
+    .field label{color:var(--muted); font-size:12px; white-space:nowrap}
+    .field input[type="password"], .field input[type="text"], .field select{
+      background:transparent; border:none; color:var(--text); outline:none; min-width:180px; font:inherit;
+    }
+
+    /* ========= Botões ========= */
+    .btn{
+      border:1px solid var(--border);
+      background:var(--surface);
+      color:var(--accent-ink);
+      padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:600;
+      box-shadow:var(--shadow-1);
+      transition: background .15s ease, border-color .15s ease, transform .03s ease;
+    }
+    .btn:hover{ background:var(--surface-2) }
+    .btn:active{ transform:translateY(1px) }
+    .btn.primary{
+      background:var(--accent); color:white; border-color:transparent; box-shadow:var(--shadow-2);
+    }
+    .btn.primary:hover{ background:#334fb2 }
+    .btn.ghost{ background:transparent; }
+    .btn.danger{ color:var(--danger); border-color:#eed2d2; background:#fff }
+    .btn.danger:hover{ background:#fff5f5 }
+
+    .mini{padding:6px 10px; font-weight:600}
+
+    /* ========= Layout principal ========= */
+    main{flex:1; display:grid; grid-template-columns: minmax(360px, 520px) 1fr; gap: var(--space-3); padding: var(--space-3); min-height:0}
+    @media (max-width: 1000px){ main{grid-template-columns:1fr; grid-auto-rows: minmax(340px, auto);} }
+
+    .panel{
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      min-height:0; display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--shadow-1);
+    }
+    .panel.calendar-panel{
+      overflow:visible;
+      position:relative;
+    }
+    .panel .title{
+      padding:10px 12px; border-bottom:1px solid var(--border); color:var(--muted); font-weight:700; letter-spacing:.2px;
+      display:flex; align-items:center; justify-content:space-between; gap:8px
+    }
+
+    /* ========= Chat ========= */
+    #chat{display:flex; flex-direction:column; height:100%}
+    #messages{
+      flex:1; overflow:auto; padding: var(--space-3); display:flex; flex-direction:column; gap: var(--space-2);
+      scrollbar-width: thin; scrollbar-color: #d6d8dd transparent;
+      background:var(--surface);
+    }
+    #messages::-webkit-scrollbar{ width:10px }
+    #messages::-webkit-scrollbar-track{ background:transparent }
+    #messages::-webkit-scrollbar-thumb{ background:#d6d8dd; border:2px solid transparent; background-clip:padding-box; border-radius:999px }
+
+    .bubble{
+      max-width:92%; padding:10px 12px; border-radius:12px; border:1px solid var(--border); white-space:pre-wrap; word-break:break-word;
+      background:#fff;
+    }
+    .user{ align-self:flex-end; background:#f3f4f6 }
+    .bot{ align-self:flex-start; background:#ffffff }
+    .meta{ font-size:11px; color:var(--muted); margin-bottom:6px }
+
+    .inputRow{
+      display:flex; gap:8px; padding:10px; border-top:1px solid var(--border); background:var(--surface-2)
+    }
+    .inputRow textarea{
+      flex:1; resize:none; min-height:54px; max-height:120px; padding:10px; border-radius:10px; border:1px solid var(--border); outline:none;
+      background:#fff; color:var(--text); font:inherit; scrollbar-width:none; -ms-overflow-style:none;
+    }
+    .inputRow textarea::placeholder{
+      white-space:normal;
+    }
+    .inputRow textarea::-webkit-scrollbar{ display:none }
+
+    /* ========= Calendário ========= */
+    .calendar-panel{display:flex; flex-direction:column;}
+    .calendarShell{
+      flex:1;
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(240px,320px);
+      gap: var(--space-3);
+      padding: var(--space-3);
+      background: var(--surface);
+      min-height:0;
+      align-items:stretch;
+      position:relative;
+    }
+    #calendar{
+      min-height:420px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      border:1px solid var(--border);
+      overflow:hidden;
+      position:relative;
+    }
+    #eventDetails{
+      background: var(--surface-2);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-3);
+      display:flex;
+      flex-direction:column;
+      gap: var(--space-2);
+      min-height:0;
+      overflow:auto;
+    }
+    #eventDetails .event-details-empty{
+      text-align:center;
+      color: var(--muted);
+      margin:auto;
+      font-size:13px;
+      max-width:220px;
+    }
+    .event-details-content{
+      display:flex;
+      flex-direction:column;
+      gap: var(--space-2);
+    }
+    .event-details-head h2{
+      margin:0;
+      font-size:16px;
+      line-height:1.35;
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      text-transform:none;
+    }
+    .event-details-time{
+      font-size:13px;
+      color: var(--muted);
+      text-transform:none;
+      line-height:1.4;
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
+    }
+    .event-details-meta{
+      font-size:13px;
+      color: var(--text);
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding:10px 12px;
+      position:relative;
+    }
+    .event-details-meta::before{
+      content: attr(data-label);
+      display:block;
+      font-size:11px;
+      font-weight:600;
+      text-transform:none;
+      letter-spacing:.02em;
+      color: var(--muted);
+      margin-bottom:4px;
+    }
+    .event-details-acolytes-title{
+      font-weight:700;
+      font-size:13px;
+      color: var(--accent-ink);
+    }
+    .acolyte-list{
+      list-style:none;
+      padding:0;
+      margin:0;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .acolyte-item{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap: var(--space-2);
+      padding:8px 10px;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      font-size:13px;
+    }
+    .acolyte-item .acolyte-role{
+      font-weight:600;
+      color: var(--accent-ink);
+    }
+    .acolyte-item .acolyte-name{
+      font-weight:500;
+      color: var(--text);
+    }
+    .acolyte-item.empty{
+      color: var(--muted);
+      justify-content:center;
+    }
+    .details-actions{
+      display:flex;
+      gap: var(--space-2);
+      margin-top:auto;
+    }
+    .event-card{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      padding:6px 8px;
+      background:var(--accent-50);
+      border-radius:10px;
+      border:1px solid transparent;
+      min-width:0;
+      overflow:hidden;
+      position:relative;
+    }
+    .event-card .event-title{
+      font-weight:700;
+      font-size:12px;
+      color: var(--accent-ink);
+      display:-webkit-box;
+      -webkit-line-clamp:1;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      line-height:1.3;
+    }
+    .event-card .event-meta{
+      font-size:11px;
+      color: var(--muted);
+      display:-webkit-box;
+      -webkit-line-clamp:1;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      line-height:1.3;
+    }
+    .day-overlay{
+      position:fixed;
+      z-index:1000;
+      min-width:240px;
+      max-width:300px;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow:0 4px 20px rgba(0,0,0,.15);
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap: var(--space-2);
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      max-height:80vh;
+      overflow:hidden;
+      box-sizing:border-box;
+    }
+    .day-overlay[hidden]{display:none;}
+    .day-overlay-head{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    .day-overlay-date{
+      font-weight:700; font-size:13px; color: var(--accent-ink); line-height:1.3;
+    }
+    .day-overlay-close{
+      border:none; background:transparent; color: var(--muted); padding:4px; border-radius:8px; cursor:pointer;
+    }
+    .day-overlay-close:hover{
+      background:var(--surface-2); color: var(--accent-ink);
+    }
+    .day-overlay-list{
+      display:flex; flex-direction:column; gap:8px;
+      overflow-y:auto; padding-right:2px;
+      scrollbar-width: thin;
+    }
+    .day-overlay-item{
+      display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+      border:1px solid var(--border); background:var(--surface-2); border-radius:10px;
+      padding:8px 10px; width:100%; cursor:pointer;
+      transition:border-color .15s ease, background .15s ease;
+    }
+    .day-overlay-item:hover{
+      border-color: var(--accent-200); background: var(--accent-50);
+    }
+    .day-overlay-item:focus-visible{
+      outline:2px solid color-mix(in oklab, var(--accent) 55%, transparent); outline-offset:2px;
+    }
+    .day-overlay-item .item-title{
+      font-weight:600; font-size:13px; color: var(--accent-ink);
+    }
+    .day-overlay-item .item-meta{
+      font-size:12px; color: var(--muted);
+    }
+    .day-overlay-item .item-foot{
+      font-size:12px; color: var(--muted-2);
+    }
+    .fc .day-overlay-target{
+      box-shadow: inset 0 0 0 2px rgba(58,92,204,.22);
+      outline: 2px solid rgba(58,92,204,.18);
+      outline-offset: 2px;
+      border-radius: 8px;
+    }
+    .fc .fc-daygrid-event,
+    .fc .fc-timegrid-event{
+      border:none;
+      background:transparent;
+    }
+    .fc .fc-daygrid-event .fc-event-main,
+    .fc .fc-timegrid-event .fc-event-main{
+      padding:0;
+    }
+    .fc .fc-daygrid-more-link{
+      font-size:11px;
+      color: var(--accent-ink);
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius:999px;
+      padding:2px 8px;
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      transition:background .15s ease, color .15s ease;
+    }
+    .fc .fc-daygrid-more-link:hover{
+      background:var(--accent-50);
+      color: var(--accent-ink);
+    }
+
+    .fc-event.is-selected .event-card{
+      border-color: var(--accent);
+      box-shadow:0 0 0 2px rgba(58,92,204,.18);
+    }
+    @media (max-width: 1100px){
+      .calendarShell{
+        grid-template-columns:1fr;
+      }
+      #eventDetails{
+        order:2;
+      }
+    }
+    /* FullCalendar: tema neutro e coerente */
+    .fc .fc-toolbar-title{ font-size:14px; font-weight:700; color:var(--accent-ink) }
+    .fc .fc-button{
+      background:#fff; border:1px solid var(--border); color:var(--accent-ink); border-radius:8px; padding:5px 10px;
+    }
+    .fc .fc-button-primary:not(:disabled).fc-button-active,
+    .fc .fc-button-primary:not(:disabled):active,
+    .fc .fc-button-primary:hover{
+      background:var(--surface-2); border-color:var(--border); color:var(--accent-ink);
+    }
+    .fc-theme-standard td, .fc-theme-standard th{ border-color:var(--border) }
+    .fc .fc-daygrid-day-number{ color:var(--muted); font-weight:600 }
+    .fc .fc-col-header-cell-cushion{ color:var(--muted); }
+    .fc .fc-day-today{ background: #f0f4ff !important }
+    .fc-list{
+      --fc-list-event-hover-bg-color: #f9fafb;
+    }
+
+    /* ========= details/sources ========= */
+    details{margin-top:8px; border-top:1px dashed var(--border); padding-top:8px}
+    details summary{cursor:pointer; color:var(--accent-ink); font-size:12px}
+    details pre{background:#fafafa; border:1px solid var(--border); border-radius:8px; padding:10px; overflow:auto}
+    code, pre code{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px}
+    code.inline{background:#f3f4f6; border:1px solid var(--border); border-radius:6px; padding:2px 5px}
+    .sources{margin-top:8px; font-size:12px; color:var(--muted)}
+    .sources a{color:var(--accent-ink); text-decoration:underline}
+
+    .slot-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+    .slot{padding:6px 8px; border-radius:8px; border:1px solid var(--border); font-size:12px; background:#fff}
+
+    /* ========= Toast ========= */
+    .toast{
+      position:fixed; right:14px; bottom:14px; background:#fff; color:var(--accent-ink);
+      padding:10px 12px; border:1px solid var(--border); border-left:4px solid var(--ok);
+      border-radius:10px; display:none; z-index:20; box-shadow:var(--shadow-2)
+    }
+    .toast.err{ border-left-color: var(--danger); background: var(--danger-bg) }
+
+    /* ========= Acessibilidade: focos consistentes ========= */
+    .btn:focus-visible,
+    .field input:focus-visible,
+    .field select:focus-visible,
+    .inputRow textarea:focus-visible{
+      outline:2px solid color-mix(in oklab, var(--accent) 55%, transparent); outline-offset:2px;
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      *{scroll-behavior:auto}
+      .btn{transition:none}
+    }
+  </style>
+</head>
+<body>
+  <header aria-label="Barra superior">
+    <h1>iAcoli</h1>
+    <div class="bar" role="group" aria-label="Preferências">
+      <div class="field" title="Sua chave NUNCA deve ir para produção no front-end">
+        <label for="apiKey">Chave:</label>
+        <input id="apiKey" type="password" placeholder="pplx-..." autocomplete="off" />
+        <button id="reveal" class="btn ghost mini" type="button" aria-pressed="false" aria-controls="apiKey">ver</button>
+      </div>
+      <div class="field">
+        <label for="model">Modelo:</label>
+        <select id="model" aria-label="Modelo">
+          <option value="sonar" selected>sonar (leve)</option>
+          <option value="sonar-pro">sonar-pro (pesquisa avançada)</option>
+          <option value="sonar-reasoning-pro">sonar-reasoning-pro</option>
+          <option value="sonar-reasoning">sonar-reasoning</option>
+          <option value="sonar-deep-research">sonar-deep-research</option>
+        </select>
+      </div>
+      <div class="bar">
+        <button id="testBtn" class="btn mini" type="button">Testar API</button>
+        <button id="clearChat" class="btn danger mini" type="button">Limpar chat</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" id="chat" aria-label="Chat">
+      <div class="title"><span>Chat — iAcoli</span></div>
+      <div id="messages" aria-live="polite" aria-atomic="false"></div>
+      <div class="inputRow">
+        <label for="input" class="sr-only" aria-hidden="true" style="position:absolute;left:-9999px;">Mensagem</label>
+        <textarea id="input" placeholder="Escreva aqui… (ex.: Agende amanhã às 15h por 1h com Ana)" aria-label="Mensagem para o agente"></textarea>
+        <button id="send" class="btn primary" type="button">Enviar</button>
+      </div>
+    </section>
+
+    <section class="panel calendar-panel" aria-label="Calendário">
+      <div class="title">Calendário</div>
+      <div class="calendarShell">
+        <div id="calendar" aria-label="Agenda"></div>
+        <aside id="eventDetails" aria-live="polite">
+          <div class="event-details-empty" role="note">Selecione uma missa no calendário.</div>
+          <div class="event-details-content" hidden>
+            <div class="event-details-head">
+              <h2 id="detailTitle">Missa</h2>
+              <div class="event-details-time" id="detailTime"></div>
+            </div>
+            <div class="event-details-meta" id="detailLocation" data-label="Local" hidden></div>
+            <div class="event-details-meta" id="detailDescription" data-label="Observações" hidden></div>
+            <div class="event-details-acolytes" id="detailAcolytesSection" hidden>
+              <div class="event-details-acolytes-title">Escala de acólitos</div>
+              <ul class="acolyte-list" id="detailAcolytes"></ul>
+            </div>
+            <div class="details-actions">
+              <button id="editEvent" class="btn mini" type="button">Editar</button>
+              <button id="deleteEvent" class="btn danger mini" type="button">Excluir</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <!-- Popover posicionado fora do grid para evitar problemas de layout -->
+  <div id="dayOverlay" class="day-overlay" role="dialog" aria-modal="false" aria-live="polite" hidden>
+    <div class="day-overlay-head">
+      <div class="day-overlay-date" id="dayOverlayDate">Eventos</div>
+      <button type="button" id="dayOverlayClose" class="day-overlay-close" aria-label="Fechar lista de eventos">&times;</button>
+    </div>
+    <div class="day-overlay-list" id="dayOverlayList"></div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // ======= Prevenir erros de recursos bloqueados =======
+    window.addEventListener('error', function(e) {
+      if (e.target && e.target.src && e.target.src.includes('googlesyndication')) {
+        e.preventDefault(); return false;
+      }
+    }, true);
+
+    // ======= Estado & Persistência =======
+    const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo';
+    const AGENT_NAME = 'iAcoli';
+
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+    const apiKeyEl = document.getElementById('apiKey');
+    const revealBtn = document.getElementById('reveal');
+    const modelEl = document.getElementById('model');
+    const testBtn = document.getElementById('testBtn');
+    const clearChatBtn = document.getElementById('clearChat');
+    const toast = document.getElementById('toast');
+    const eventDetailsEl = document.getElementById('eventDetails');
+    const eventDetailsEmptyEl = eventDetailsEl?.querySelector('.event-details-empty') || null;
+    const eventDetailsContentEl = eventDetailsEl?.querySelector('.event-details-content') || null;
+    const detailTitleEl = document.getElementById('detailTitle');
+    const detailTimeEl = document.getElementById('detailTime');
+    const detailLocationEl = document.getElementById('detailLocation');
+    const detailDescriptionEl = document.getElementById('detailDescription');
+    const detailAcolytesSectionEl = document.getElementById('detailAcolytesSection');
+    const detailAcolytesEl = document.getElementById('detailAcolytes');
+    const editEventBtn = document.getElementById('editEvent');
+    const deleteEventBtn = document.getElementById('deleteEvent');
+    const dayOverlayEl = document.getElementById('dayOverlay');
+    const dayOverlayDateEl = document.getElementById('dayOverlayDate');
+    const dayOverlayListEl = document.getElementById('dayOverlayList');
+    const dayOverlayCloseBtn = document.getElementById('dayOverlayClose');
+
+    const SETTINGS = {
+      get apiKey(){ return localStorage.getItem('pplx_api_key') || ''; },
+      set apiKey(v){ localStorage.setItem('pplx_api_key', v || ''); },
+      get model(){ return localStorage.getItem('pplx_model') || 'sonar'; },
+      set model(v){ localStorage.setItem('pplx_model', v || 'sonar'); },
+    };
+
+    const STORE = {
+      get events(){ try { return JSON.parse(localStorage.getItem('events_v2')||'[]'); } catch { return []; } },
+      set events(v){ localStorage.setItem('events_v2', JSON.stringify(v)); }
+    };
+
+    const ACOLYTE_ROLES = {
+      LIB: { label: 'Librífero', short: 'LIB', aliases: ['LIBRIFERO'] },
+      CAM: { label: 'Campanário', short: 'CAM', aliases: ['CAMPANARIO'] },
+      CRU: { label: 'Cruciferário', short: 'CRU', aliases: ['CRUCIFERARIO', 'CRUZIFERARIO'] },
+      CER: { label: 'Ceroferário', short: 'CER', aliases: ['CEROFERARIO', 'CERIFERARIO'] },
+      TUR: { label: 'Turiferário', short: 'TUR', aliases: ['TURIFERARIO'] },
+      NAV: { label: 'Naveteiro', short: 'NAV', aliases: ['NAVETEIRO'] },
+      MIC: { label: 'Microfonário', short: 'MIC', aliases: ['MICROFONARIO', 'MICROFONISTA'] },
+    };
+    const ROLE_ORDER = ['LIB','CAM','CRU','CER','TUR','NAV','MIC'];
+
+    function stripAccents(str){
+      return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function normalizeRole(role){
+      if (!role) return '';
+      const raw = String(role).trim();
+      if (!raw) return '';
+      const cleaned = stripAccents(raw).toUpperCase().replace(/[^A-Z]/g, '');
+      if (ACOLYTE_ROLES[cleaned]) return cleaned;
+      for (const [key, meta] of Object.entries(ACOLYTE_ROLES)){
+        const aliases = meta.aliases || [];
+        const labelNormalized = stripAccents(meta.label).toUpperCase().replace(/[^A-Z]/g, '');
+        if (cleaned === labelNormalized || aliases.includes(cleaned)) return key;
+      }
+      if (cleaned.length === 3) return cleaned;
+      return cleaned || raw.toUpperCase();
+    }
+
+    function normalizeAcolytes(raw){
+      if (!raw) return [];
+      const acc = [];
+      const push = (role, name) => {
+        const cleanName = typeof name === 'string' ? name.trim() : '';
+        if (!role || !cleanName) return;
+        acc.push({ role: normalizeRole(role), name: cleanName });
+      };
+
+      const parseString = (str) => {
+        str.split(/[\n;,]/).forEach(part => {
+          const piece = part.trim();
+          if (!piece) return;
+          const [rolePart, ...rest] = piece.split(':');
+          if (rest.length){
+            push(rolePart, rest.join(':').trim());
+            return;
+          }
+          const hyphenSplit = piece.split(/[-–—]/);
+          if (hyphenSplit.length > 1){
+            const role = hyphenSplit.shift();
+            push(role, hyphenSplit.join('-').trim());
+            return;
+          }
+          const match = piece.match(/^(\w{3})\s+(.+)$/);
+          if (match) push(match[1], match[2].trim());
+        });
+      };
+
+      if (Array.isArray(raw)){
+        raw.forEach(item => {
+          if (!item) return;
+          if (typeof item === 'string'){
+            parseString(item);
+            return;
+          }
+          if (typeof item === 'object'){
+            const role = item.role || item.code || item.key || item.type || item.funcao || item.func || item.position || item.label;
+            const name = item.name || item.person || item.member || item.acolyte || item.assignee || item.value;
+            if (role && name){ push(role, name); return; }
+            if (role && Array.isArray(item.names)){ item.names.forEach(n => push(role, n)); }
+          }
+        });
+      } else if (typeof raw === 'object'){
+        Object.entries(raw).forEach(([role, value]) => {
+          if (typeof value === 'string'){ push(role, value); return; }
+          if (value && typeof value.name === 'string'){ push(role, value.name); }
+        });
+      } else if (typeof raw === 'string'){
+        parseString(raw);
+      }
+
+      const seen = new Set();
+      const unique = [];
+      acc.forEach(item => {
+        const role = item.role || '';
+        const name = item.name || '';
+        if (!role || !name) return;
+        const key = role + '::' + name.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        unique.push({ role, name });
+      });
+
+      unique.sort((a,b) => {
+        const ai = ROLE_ORDER.indexOf(a.role);
+        const bi = ROLE_ORDER.indexOf(b.role);
+        if (ai === -1 && bi === -1) return a.role.localeCompare(b.role);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+
+      return unique;
+    }
+
+    function formatAcolytePrompt(acolytes){
+      if (!acolytes || !acolytes.length) return '';
+      return acolytes.map(({ role, name }) => {
+        const meta = ACOLYTE_ROLES[role] || {};
+        const short = meta.short || role;
+        return `${short}: ${name}`;
+      }).join(', ');
+    }
+
+    function summarizeAcolytes(acolytes){
+      if (!acolytes || !acolytes.length) return '';
+      const parts = acolytes.slice(0, 2).map(item => {
+        const meta = ACOLYTE_ROLES[item.role] || {};
+        return `${meta.short || item.role}: ${item.name}`;
+      });
+      if (acolytes.length > 2){
+        parts.push(`+${acolytes.length - 2}`);
+      }
+      return parts.join(', ');
+    }
+
+    function showToast(msg, kind='ok'){
+      toast.textContent = msg;
+      toast.classList.toggle('err', kind!=='ok');
+      toast.style.display = 'block';
+      setTimeout(()=> toast.style.display='none', 3600);
+    }
+
+    // ======= FullCalendar =======
+    let calendar;
+    let calendarEl = null;
+    let selectedEvent = null;
+    let selectedEventId = null;
+    let overlayTargetDayFrame = null;
+    let overlayCleanupAutoUpdate = null;
+    document.addEventListener('DOMContentLoaded', () => {
+      // Restaurar preferências
+      apiKeyEl.value = SETTINGS.apiKey;
+      modelEl.value = SETTINGS.model;
+
+      // Auto-resize do textarea
+      const autosize = () => {
+        inputEl.style.height = '0px';
+        inputEl.style.height = Math.min(120, Math.max(54, inputEl.scrollHeight)) + 'px';
+      };
+      inputEl.addEventListener('input', autosize); autosize();
+
+      calendarEl = document.getElementById('calendar');
+      const storedEvents = STORE.events.map(prepareStoredEvent);
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        locale: 'pt-br',
+        timeZone: 'local',
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+        },
+        selectable: true,
+        selectMirror: true,
+        nowIndicator: true,
+        height: '100%',
+        dayMaxEvents: true,
+        dayMaxEventRows: 3,
+        moreLinkContent: (args) => `+${args.num} mais`,
+        events: storedEvents,
+        eventContent: renderEventContent,
+        eventDidMount: handleEventDidMount,
+        select: (selInfo) => {
+          closeDayOverlay();
+          openEventCreator(selInfo);
+          calendar.unselect();
+        },
+        eventClick: (info) => {
+          if (info.jsEvent) info.jsEvent.preventDefault();
+          closeDayOverlay();
+          selectedEvent = info.event;
+          selectedEventId = info.event.id;
+          showEventDetails(info.event);
+          updateEventSelection();
+        },
+        datesSet: () => closeDayOverlay()
+      });
+      calendar.render();
+      
+      // Reaplique o hook que intercepta o clique antes do FC
+      hijackMoreLinkClicks();
+      
+      clearEventDetails();
+
+      if (editEventBtn){
+        editEventBtn.addEventListener('click', () => {
+          if (!selectedEvent){
+            showToast('Selecione uma missa para editar.', 'err');
+            return;
+          }
+          closeDayOverlay();
+          openEventEditor(selectedEvent);
+        });
+      }
+      if (deleteEventBtn){
+        deleteEventBtn.addEventListener('click', () => {
+          if (!selectedEvent){
+            showToast('Selecione uma missa para excluir.', 'err');
+            return;
+          }
+          if (!confirm('Remover esta missa do calendário?')) return;
+          closeDayOverlay();
+          selectedEvent.remove();
+          saveEvents();
+          clearEventDetails();
+          showToast('Missa removida.');
+        });
+      }
+
+      // Mensagem inicial
+      pushBot(
+`Olá! Sou o **${AGENT_NAME}**, seu agente de agenda litúrgica. Pode escrever normalmente e eu:
+1) respondo em texto claro;
+2) gero ações de calendário quando necessário;
+3) mantenho nome da missa, local e a escala de acólitos (LIB, CAM, CRU, CER, TUR, NAV, MIC).`
+      );
+
+      if (dayOverlayCloseBtn){
+        dayOverlayCloseBtn.addEventListener('click', closeDayOverlay);
+      }
+      document.addEventListener('click', handleDocumentClick);
+      document.addEventListener('keydown', handleDocumentKeydown);
+    });
+
+    function isSameDay(a, b){
+      if (!a || !b) return false;
+      return a.getFullYear()===b.getFullYear() &&
+             a.getMonth()===b.getMonth() &&
+             a.getDate()===b.getDate();
+    }
+
+    function dayEvents(date){
+      return calendar.getEvents()
+        .filter(e => e.start && isSameDay(e.start, date))
+        .sort((a, b) => (a.start?.getTime()||0) - (b.start?.getTime()||0));
+    }
+
+
+
+    function addEvent(evt){
+      const payload = { ...(evt || {}) };
+      if (!payload.end && payload.start) {
+        const baseStart = payload.start instanceof Date ? new Date(payload.start) : new Date(payload.start);
+        const mins = Number(payload.durationMin || payload.durationMinutes || 60) || 60;
+        const end = new Date(baseStart.getTime());
+        end.setMinutes(end.getMinutes() + mins);
+        payload.end = end;
+      }
+      const prepared = prepareEventInput(payload);
+      const created = calendar.addEvent(prepared);
+      saveEvents();
+      return created;
+    }
+
+
+    function prepareStoredEvent(evt){
+      return prepareEventInput(evt || {});
+    }
+
+    function prepareEventInput(evt){
+      const base = { ...(evt || {}) };
+      if (!base.id) base.id = generateEventId();
+      if (base.start && !(base.start instanceof Date)) base.start = new Date(base.start);
+      if (base.end && !(base.end instanceof Date)) base.end = new Date(base.end);
+      const extended = { ...(base.extendedProps || {}) };
+      if (base.location && extended.location === undefined) extended.location = base.location;
+      if (base.description && extended.description === undefined) extended.description = base.description;
+      extended.acolytes = normalizeAcolytes(extended.acolytes || base.acolytes);
+      base.extendedProps = extended;
+      return base;
+    }
+
+    function generateEventId(){
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+      return 'evt_' + Math.random().toString(36).slice(2, 10);
+    }
+
+    function renderEventContent(arg){
+      const card = document.createElement('div');
+      card.className = 'event-card';
+
+      const title = document.createElement('div');
+      title.className = 'event-title';
+      title.textContent = arg.event.title || 'Missa';
+      card.appendChild(title);
+
+      const timeText = formatEventTimeShort(arg.event);
+      const location = arg.event.extendedProps?.location || '';
+      const acolytes = normalizeAcolytes(arg.event.extendedProps?.acolytes);
+      const infoParts = [];
+      if (timeText) infoParts.push(timeText);
+      if (location) infoParts.push(location);
+      const acolyteSummary = summarizeAcolytes(acolytes);
+      if (acolyteSummary) infoParts.push(acolyteSummary);
+      if (infoParts.length){
+        const metaEl = document.createElement('div');
+        metaEl.className = 'event-meta';
+        metaEl.textContent = infoParts.join(' • ');
+        card.appendChild(metaEl);
+      }
+
+      return { domNodes: [card] };
+    }
+
+    function handleEventDidMount(arg){
+      if (!arg || !arg.el) return;
+      if (arg.event && arg.event.id) arg.el.dataset.eventId = arg.event.id;
+      const tooltipParts = [];
+      if (arg.event.title) tooltipParts.push(arg.event.title);
+      const timeText = formatEventTimeShort(arg.event);
+      if (timeText) tooltipParts.push(timeText);
+      if (arg.event.extendedProps?.location) tooltipParts.push(arg.event.extendedProps.location);
+      const acolyteSummary = summarizeAcolytes(normalizeAcolytes(arg.event.extendedProps?.acolytes));
+      if (acolyteSummary) tooltipParts.push(`Acólitos: ${acolyteSummary}`);
+      if (tooltipParts.length) arg.el.setAttribute('title', tooltipParts.join(' • '));
+      arg.el.classList.toggle('is-selected', !!selectedEventId && arg.event.id === selectedEventId);
+    }
+
+    function updateEventSelection(){
+      if (!calendarEl) return;
+      calendarEl.querySelectorAll('.fc-event').forEach(node => {
+        node.classList.toggle('is-selected', !!selectedEventId && node.dataset.eventId === selectedEventId);
+      });
+    }
+
+    function formatEventTimeShort(event){
+      if (!event || !event.start) return '';
+      if (event.allDay) return 'Dia inteiro';
+      const fmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const start = event.start;
+      const end = event.end;
+      if (!end || start.getTime() === end.getTime()) return fmt.format(start);
+      if (start.toDateString() === end.toDateString()) return `${fmt.format(start)} – ${fmt.format(end)}`;
+      return `${fmt.format(start)} → ${fmt.format(end)}`;
+    }
+
+    function formatWeekdayDayMonth(date){
+      if (!date) return '';
+      const weekday = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' }).format(date);
+      const day = new Intl.DateTimeFormat('pt-BR', { day: '2-digit' }).format(date);
+      const month = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(date);
+      return `${weekday}, ${day} de ${month}`;
+    }
+
+    function formatEventDateRange(event){
+      if (!event || !event.start) return '';
+      const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const start = event.start;
+      const end = event.end;
+      const startLabel = formatWeekdayDayMonth(start);
+      if (event.allDay) return `${startLabel} • dia inteiro`;
+      if (!end || start.getTime() === end.getTime()) return `${startLabel} • ${timeFmt.format(start)}`;
+      if (start.toDateString() === end.toDateString()){
+        return `${startLabel} • ${timeFmt.format(start)} – ${timeFmt.format(end)}`;
+      }
+      const endLabel = formatWeekdayDayMonth(end);
+      return `${startLabel} ${timeFmt.format(start)} → ${endLabel} ${timeFmt.format(end)}`;
+    }
+
+    function formatCountPt(count, singular, plural){
+      if (count === 1) return `1 ${singular}`;
+      return `${count} ${plural || singular + 's'}`;
+    }
+
+    function formatActionsCount(count){
+      if (!count) return '';
+      return formatCountPt(count, 'ação', 'ações');
+    }
+
+    function closeDayOverlay(){
+      if (!dayOverlayEl || dayOverlayEl.hidden) return;
+      dayOverlayEl.hidden = true;
+      dayOverlayEl.style.visibility = 'hidden';
+      dayOverlayEl.setAttribute('aria-hidden', 'true');
+      if (overlayTargetDayFrame){
+        overlayTargetDayFrame.classList.remove('day-overlay-target');
+        overlayTargetDayFrame = null;
+      }
+      if (overlayCleanupAutoUpdate) {
+        overlayCleanupAutoUpdate();
+        overlayCleanupAutoUpdate = null;
+      }
+    }
+
+    function handleDocumentClick(e){
+      if (!dayOverlayEl || dayOverlayEl.hidden) return;
+      if (dayOverlayEl.contains(e.target)) return;
+      if (e.target.closest && e.target.closest('.fc-daygrid-more-link')) return;
+      // Permite clicar nas células do calendário sem fechar o popover
+      if (e.target.closest && e.target.closest('#calendar')) {
+        // Se clicou em uma célula do calendário, verifica se é para abrir outro popover
+        const moreLinkClicked = e.target.closest('.fc-daygrid-more-link');
+        if (!moreLinkClicked) {
+          closeDayOverlay();
+        }
+      } else {
+        closeDayOverlay();
+      }
+    }
+
+    function handleDocumentKeydown(e){
+      if (e.key === 'Escape') closeDayOverlay();
+    }
+
+    function hijackMoreLinkClicks(){
+      const root = calendarEl;
+
+      const openFromLink = (ev, link) => {
+        // fallback mobile: abre a view de dia
+        if (window.innerWidth < 640) {
+          const dayEl = link.closest('.fc-daygrid-day');
+          const dateStr = dayEl?.getAttribute('data-date');
+          if (dateStr) {
+            calendar.changeView('timeGridDay', dateStr);
+            return;
+          }
+        }
+        const dayEl = link.closest('.fc-daygrid-day');
+        const dateStr = dayEl?.getAttribute('data-date');
+        const date = dateStr ? new Date(dateStr + 'T00:00:00') : null;
+        const segs = calendar.getEvents()
+          .filter(e => e.start && date && e.start.toDateString() === date.toDateString())
+          .map(event => ({ event }));
+
+        openDayOverlay({ date, segs, dayEl, jsEvent: ev });
+      };
+
+      const capture = (ev) => {
+        const link = ev.target.closest?.('.fc-daygrid-more-link');
+        if (!link) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.stopImmediatePropagation?.();
+        openFromLink(ev, link);
+      };
+
+      // capture-phase cobre mousedown/touch/pointer e click
+      root.addEventListener('pointerdown', capture, true);
+      root.addEventListener('mousedown', capture, true);
+      root.addEventListener('click', capture, true);
+    }
+
+    function positionDayOverlay(anchorEl) {
+      const F = window.FloatingUIDOM;
+      if (!F || typeof F.computePosition !== 'function') return;
+      if (!(anchorEl instanceof Element) || !document.documentElement.contains(anchorEl)) return;
+      if (!dayOverlayEl || !dayOverlayEl.isConnected) return;
+
+      if (overlayCleanupAutoUpdate) overlayCleanupAutoUpdate();
+
+      const padding = 12;
+      overlayCleanupAutoUpdate = F.autoUpdate(anchorEl, dayOverlayEl, () => {
+        const middleware = [
+          F.offset(8),
+          F.flip({ boundary: calendarEl, altBoundary: true, padding }),
+          F.shift({ boundary: calendarEl, altBoundary: true, padding }),
+        ];
+        if (typeof F.size === 'function') {
+          middleware.push(F.size({
+            boundary: calendarEl,
+            padding,
+            apply({ availableWidth, availableHeight, elements }) {
+              const head = elements.floating.querySelector('.day-overlay-head');
+              const headH = head ? head.getBoundingClientRect().height : 0;
+              const maxW = Math.max(240, Math.min(300, Math.floor(availableWidth)));
+              elements.floating.style.minWidth = '240px';
+              elements.floating.style.maxWidth = maxW + 'px';
+              elements.floating.style.width    = Math.min(300, maxW) + 'px';
+              const list = elements.floating.querySelector('#dayOverlayList');
+              if (list) list.style.maxHeight = Math.max(120, Math.floor(availableHeight - headH - 16)) + 'px';
+            }
+          }));
+        }
+
+        F.computePosition(anchorEl, dayOverlayEl, {
+          placement: 'right-start',
+          strategy: 'fixed',
+          middleware
+        }).then(({x, y, placement}) => {
+          dayOverlayEl.style.left = Math.round(x) + 'px';
+          dayOverlayEl.style.top  = Math.round(y) + 'px';
+          dayOverlayEl.style.visibility = 'visible';
+          dayOverlayEl.setAttribute('data-placement', placement);
+        });
+      });
+    }
+
+    function openDayOverlay(info){
+      if (!dayOverlayEl || !calendarEl) return;
+      const eventsMap = new Map();
+      (info.segs || []).forEach(seg => {
+        if (seg && seg.event && !eventsMap.has(seg.event.id)){
+          eventsMap.set(seg.event.id, seg.event);
+        }
+      });
+      const events = Array.from(eventsMap.values()).sort((a, b) => {
+        const startA = a.start ? a.start.getTime() : 0;
+        const startB = b.start ? b.start.getTime() : 0;
+        return startA - startB;
+      });
+      if (!events.length){
+        closeDayOverlay();
+        return;
+      }
+
+      const baseDate = info.date || events[0].start || new Date();
+      if (dayOverlayDateEl){
+        dayOverlayDateEl.textContent = formatWeekdayDayMonth(baseDate);
+      }
+      dayOverlayEl.setAttribute('aria-label', `Missas de ${formatWeekdayDayMonth(baseDate)}`);
+
+      if (dayOverlayListEl){
+        dayOverlayListEl.innerHTML = '';
+        events.forEach(event => {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'day-overlay-item';
+
+          const title = document.createElement('div');
+          title.className = 'item-title';
+          title.textContent = event.title || 'Missa';
+          item.appendChild(title);
+
+          const timeRow = document.createElement('div');
+          timeRow.className = 'item-meta';
+          timeRow.textContent = formatEventTimeShort(event) || 'Horário não definido';
+          item.appendChild(timeRow);
+
+          const metaParts = [];
+          const location = event.extendedProps?.location;
+          if (location) metaParts.push(location);
+          const acolyteSummary = summarizeAcolytes(normalizeAcolytes(event.extendedProps?.acolytes));
+          if (acolyteSummary) metaParts.push(acolyteSummary);
+          if (metaParts.length){
+            const foot = document.createElement('div');
+            foot.className = 'item-foot';
+            foot.textContent = metaParts.join(' • ');
+            item.appendChild(foot);
+          }
+
+          item.addEventListener('click', () => {
+            selectedEvent = event;
+            selectedEventId = event.id;
+            showEventDetails(event);
+            updateEventSelection();
+            calendar.gotoDate(event.start);
+            closeDayOverlay();
+          });
+
+          dayOverlayListEl.appendChild(item);
+        });
+      }
+
+      // Preparação visual mínima (sem calcular posição manualmente)
+      dayOverlayEl.hidden = false;
+      dayOverlayEl.setAttribute('aria-hidden', 'false');
+      dayOverlayEl.style.visibility = 'hidden';
+      dayOverlayEl.style.position = 'fixed';
+      dayOverlayEl.style.transform = 'translate(0,0)';
+
+      // Anchor: o link "+N mais" se existir; senão, a célula
+      const anchor =
+        (info.jsEvent && info.jsEvent.target && info.jsEvent.target.closest('.fc-daygrid-more-link')) ||
+        (info.dayEl && (info.dayEl.querySelector('.fc-daygrid-more-link') || info.dayEl)) ||
+        info.dayEl || calendarEl;
+
+      // Delega o posicionamento ao Floating UI
+      positionDayOverlay(anchor);
+
+      // Destaque da célula alvo (mantém seu comportamento atual)
+      if (overlayTargetDayFrame){
+        overlayTargetDayFrame.classList.remove('day-overlay-target');
+      }
+      overlayTargetDayFrame = info.dayEl?.querySelector('.fc-daygrid-day-frame') || info.dayEl;
+      overlayTargetDayFrame?.classList.add('day-overlay-target');
+
+      // Foco no botão fechar (acessibilidade)
+      dayOverlayCloseBtn?.focus();
+    }
+
+    function populateAcolyteDetails(acolytes){
+      if (!detailAcolytesEl) return;
+      detailAcolytesEl.innerHTML = '';
+      if (!acolytes.length){
+        const li = document.createElement('li');
+        li.className = 'acolyte-item empty';
+        li.textContent = 'Nenhum acólito escalado.';
+        detailAcolytesEl.appendChild(li);
+        return;
+      }
+      acolytes.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'acolyte-item';
+        const meta = ACOLYTE_ROLES[item.role] || {};
+        const roleLabel = meta.label ? `${meta.label} (${meta.short || item.role})` : item.role;
+        const roleEl = document.createElement('span');
+        roleEl.className = 'acolyte-role';
+        roleEl.textContent = roleLabel;
+        const nameEl = document.createElement('span');
+        nameEl.className = 'acolyte-name';
+        nameEl.textContent = item.name;
+        li.append(roleEl, nameEl);
+        detailAcolytesEl.appendChild(li);
+      });
+    }
+
+    function showEventDetails(event){
+      if (!eventDetailsEl) return;
+      if (!event){
+        clearEventDetails();
+        return;
+      }
+      const acolytes = normalizeAcolytes(event.extendedProps?.acolytes);
+      if (eventDetailsEmptyEl) eventDetailsEmptyEl.hidden = true;
+      if (eventDetailsContentEl) eventDetailsContentEl.hidden = false;
+      if (detailTitleEl) detailTitleEl.textContent = event.title || 'Missa';
+      if (detailTimeEl) detailTimeEl.textContent = formatEventDateRange(event);
+
+      const location = event.extendedProps?.location || '';
+      if (detailLocationEl){
+        detailLocationEl.textContent = location;
+        detailLocationEl.hidden = !location;
+      }
+
+      const description = event.extendedProps?.description || '';
+      if (detailDescriptionEl){
+        detailDescriptionEl.textContent = description;
+        detailDescriptionEl.hidden = !description;
+      }
+
+      if (detailAcolytesSectionEl){
+        detailAcolytesSectionEl.hidden = false;
+      }
+      populateAcolyteDetails(acolytes);
+      updateEventSelection();
+    }
+
+    function clearEventDetails(){
+      closeDayOverlay();
+      if (eventDetailsEmptyEl) eventDetailsEmptyEl.hidden = false;
+      if (eventDetailsContentEl) eventDetailsContentEl.hidden = true;
+      if (detailTitleEl) detailTitleEl.textContent = 'Missa';
+      if (detailTimeEl) detailTimeEl.textContent = '';
+      if (detailLocationEl){
+        detailLocationEl.textContent = '';
+        detailLocationEl.hidden = true;
+      }
+      if (detailDescriptionEl){
+        detailDescriptionEl.textContent = '';
+        detailDescriptionEl.hidden = true;
+      }
+      if (detailAcolytesSectionEl){
+        detailAcolytesSectionEl.hidden = true;
+      }
+      if (detailAcolytesEl) detailAcolytesEl.innerHTML = '';
+      selectedEvent = null;
+      selectedEventId = null;
+      updateEventSelection();
+    }
+
+    function formatDateTimeInput(date){
+      if (!date) return '';
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function parseDateTimeInput(value){
+      if (!value) return null;
+      const trimmed = String(value).trim();
+      if (!trimmed) return null;
+      const match = trimmed.replace('T', ' ').match(/^(\d{4})[-/](\d{2})[-/](\d{2})(?:\s+(\d{2}):(\d{2}))?$/);
+      if (!match) return null;
+      const [, y, m, d, hh = '00', mm = '00'] = match;
+      return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm));
+    }
+
+    function openEventCreator(selInfo){
+      const title = prompt('Nome da missa:', '');
+      if (title === null) return;
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle){
+        showToast('Criação cancelada: informe o nome da missa.', 'err');
+        return;
+      }
+      const location = prompt('Local da missa:', '');
+      if (location === null) return;
+      const description = prompt('Observações adicionais:', '');
+      if (description === null) return;
+      const acolyteInput = prompt('Escala de acólitos (ex.: LIB: João, CAM: Maria):', '');
+      if (acolyteInput === null) return;
+
+      const created = addEvent({
+        title: trimmedTitle,
+        start: selInfo.start,
+        end: selInfo.end,
+        allDay: selInfo.allDay,
+        extendedProps: {
+          location: location.trim(),
+          description: description.trim(),
+          acolytes: normalizeAcolytes(acolyteInput)
+        }
+      });
+      if (created){
+        selectedEvent = created;
+        selectedEventId = created.id;
+        showEventDetails(created);
+        showToast('Missa criada no calendário.');
+      }
+    }
+
+    function openEventEditor(event){
+      if (!event) return;
+      const title = prompt('Nome da missa:', event.title || '');
+      if (title === null) return;
+      const startInput = prompt('Início (AAAA-MM-DD HH:MM):', formatDateTimeInput(event.start));
+      if (startInput === null) return;
+      const endInput = prompt('Fim (AAAA-MM-DD HH:MM):', formatDateTimeInput(event.end));
+      if (endInput === null) return;
+      const location = prompt('Local da missa:', event.extendedProps?.location || '');
+      if (location === null) return;
+      const description = prompt('Observações adicionais:', event.extendedProps?.description || '');
+      if (description === null) return;
+      const acolyteInput = prompt('Escala de acólitos (ex.: LIB: João, CAM: Maria):', formatAcolytePrompt(normalizeAcolytes(event.extendedProps?.acolytes)));
+      if (acolyteInput === null) return;
+
+      const trimmedTitle = title.trim() || 'Missa';
+      let startDate = parseDateTimeInput(startInput) || event.start;
+      let endDate = endInput.trim() ? parseDateTimeInput(endInput) : null;
+      if (!endDate && event.end && startDate){
+        const duration = event.end.getTime() - event.start.getTime();
+        if (duration > 0) endDate = new Date(startDate.getTime() + duration);
+      }
+
+      event.setProp('title', trimmedTitle);
+      if (startDate) event.setStart(startDate);
+      if (endDate) event.setEnd(endDate);
+      if (!endDate && !endInput.trim()) event.setEnd(null);
+      event.setExtendedProp('location', location.trim());
+      event.setExtendedProp('description', description.trim());
+      event.setExtendedProp('acolytes', normalizeAcolytes(acolyteInput));
+      saveEvents();
+      showEventDetails(event);
+      showToast('Evento atualizado.');
+    }
+
+    function saveEvents(){
+      const arr = calendar.getEvents().map(e => {
+        const base = {
+          id: e.id,
+          title: e.title,
+          allDay: e.allDay,
+          extendedProps: {
+            ...e.extendedProps,
+            acolytes: normalizeAcolytes(e.extendedProps?.acolytes)
+          }
+        };
+        const defs = e._def || {};
+        const rrule = defs.recurringDef?.typeData?.rruleStr || defs.recurringDef?.typeData?.rrule;
+        if (rrule){
+          base.rrule = defs.recurringDef.typeData.rrule || defs.recurringDef.typeData.rruleStr;
+          base.duration = defs.recurringDef.typeData.duration || e.extendedProps?.duration;
+        } else {
+          base.start = e.start;
+          base.end = e.end;
+        }
+        return base;
+      });
+      STORE.events = arr;
+    }
+
+    // ======= Chat UI =======
+    function pushUser(text){
+      const wrap = document.createElement('div');
+      wrap.className = 'bubble user';
+      wrap.innerHTML = `<div class="meta">Você • ${new Date().toLocaleString('pt-BR')}</div>${escapeHtml(text)}`;
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function makeDetails({raw, actions, sources}) {
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      const count = (actions?.schedules?.length || 0) + (actions?.availability?.length || 0);
+      const countLabel = formatActionsCount(count);
+      summary.textContent = `detalhes${countLabel ? ` • ${countLabel}` : ''}`;
+      details.appendChild(summary);
+
+      if (actions?.availability?.length){
+        const av = actions.availability[0];
+        const slots = computeAvailability(av);
+        const h = document.createElement('div');
+        h.className = 'slot-list';
+        slots.slice(0, av.count || 3).forEach(s => {
+          const pill = document.createElement('div');
+          pill.className = 'slot';
+          pill.textContent = new Date(s.start).toLocaleString('pt-BR') + ` (${Math.round((s.end - s.start)/60000)} min)`;
+          h.appendChild(pill);
+        });
+        details.appendChild(h);
+      }
+
+      if (actions?.schedules?.length){
+        const pre = document.createElement('pre');
+        pre.innerHTML = `<code>${escapeHtml(JSON.stringify(actions.schedules, null, 2))}</code>`;
+        details.appendChild(pre);
+      }
+
+      if (raw){
+        const preRaw = document.createElement('pre');
+        preRaw.innerHTML = `<code>${escapeHtml(raw)}</code>`;
+        details.appendChild(preRaw);
+      }
+
+      if (sources?.length){
+        const src = document.createElement('div');
+        src.className = 'sources';
+        src.innerHTML = `<strong>Fontes:</strong> ` + sources.map(s => `<a target="_blank" href="${s.url}">${escapeHtml(s.title||s.url)}</a>`).join(' • ');
+        details.appendChild(src);
+      }
+
+      if (actions?.schedules?.length){
+        const btn = document.createElement('button');
+        btn.className = 'btn mini ghost';
+        btn.textContent = 'Copiar JSON de ações';
+        btn.onclick = () => {
+          navigator.clipboard.writeText(JSON.stringify(actions.schedules, null, 2));
+          showToast('JSON copiado.');
+        };
+        details.appendChild(btn);
+      }
+
+      return details;
+    }
+
+    function pushBot(visibleText, opts={}){
+      const wrap = document.createElement('div');
+      wrap.className = 'bubble bot';
+      let html = `<div class="meta">${AGENT_NAME} • ${new Date().toLocaleString('pt-BR')}</div>${mdToHtml(visibleText || '')}`;
+      wrap.innerHTML = html;
+
+      if (opts.details) {
+        wrap.appendChild(makeDetails(opts.details));
+      }
+
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // ======= Chamada Perplexity =======
+    const SYSTEM_PROMPT = `
+Você é o **Agente de Agenda da Paróquia**. Sua missão é administrar o calendário interno de missas, atuando como assistente confiável para o sacristão.
+
+### Objetivo central
+- Controlar o calendário interno de missas, respeitando horários, locais e escala de acólitos.
+
+### Saída (contrato rígido)
+1) **Primeiro**, escreva uma mensagem curta, clara e humana (sem JSON embutido).
+2) **Depois**, se houver ações, emita **um ou mais blocos** \`\`\`json ... \`\`\` contendo SOMENTE ações:
+   - Um bloco por ação. Não use arrays para múltiplas ações; escreva vários blocos.
+   - Não inclua comentários nem explicações dentro dos JSONs.
+3) Para **agenda**, use o objeto **{"schedule": {...}}**.
+4) Para **consultar disponibilidade**, use **{"availability": {...}}**.
+5) Não produza blocos JSON se nenhuma ação for necessária.
+
+### Agenda de missas
+- Para criar uma missa use {"schedule":{"action":"create", ...}} com os campos obrigatórios: title, start, end.
+- Inclua location sempre que o usuário especificar o local.
+- Transfira observações relevantes para description quando existirem.
+- Sempre que o usuário fornecer escala/funções de acólitos, inclua acolytes com uma lista de objetos { "role": "LIB", "name": "Fábio" }.
+- Se o usuário não citar acólitos, omita o campo acolytes (ou envie acolytes: [] para indicar remoção).
+- Converta nomes de funções para os códigos canônicos (LIB, CAM, CRU, CER, TUR, NAV, MIC), mesmo que o usuário escreva variações ou grafias diferentes.
+- Ao atualizar (action:"update"), só envie campos que realmente precisam mudar. Preserve título, local, descrição e escala existentes quando não houver instrução explícita.
+- Para remover toda a escala de uma missa, envie acolytes: [] no update.
+- Ao mover (action:"move"), mantenha o restante dos dados intacto.
+- Só utilize action:"delete" quando o usuário pedir exclusão explícita.
+
+### Escala de acólitos
+- Códigos aceitos: LIB (Librífero), CAM (Campanário), CRU (Cruciferário), CER (Ceroferário), TUR (Turiferário), NAV (Naveteiro), MIC (Microfonário).
+- Aceite sinônimos e flexões (ex.: "librífero", "campanário", "microfonista", etc.) convertendo para o código correto.
+- Sempre relacione cada código a um nome.
+
+### Regras gerais
+- Calendário **interno**; **NÃO** mencione Google Calendar/iCloud/Outlook.
+- Timezone padrão: **America/Sao_Paulo**. Interprete datas relativas nesse fuso.
+- Se o usuário não informar duração, assuma **60 minutos**.
+- Para pedidos vagos, peça esclarecimentos antes de agir.
+- Quando resumir o que fez, cite missa, local e escala de acólitos confirmada.
+
+### Ações suportadas (exemplos)
+{"schedule":{"action":"create","title":"Missa no Divino","start":"2025-09-27T19:30:00-03:00","end":"2025-09-27T20:30:00-03:00","location":"Igreja do Divino","acolytes":[{"role":"LIB","name":"Fábio"},{"role":"CER","name":"Eloá"}]}}
+{"schedule":{"action":"update","title":"Missa do Terço","start":"2025-09-28T18:00:00-03:00","end":"2025-09-28T19:00:00-03:00","acolytes":[{"role":"CRU","name":"Rafael"},{"role":"NAV","name":"Bruna"}]}}
+{"schedule":{"action":"move","title":"Missa do Domingo","deltaMinutes":30}}
+{"schedule":{"action":"delete","title":"Missa das 7h"}}
+{"availability":{"durationMinutes":45,"windowStart":"2025-09-27T08:00:00-03:00","windowEnd":"2025-09-27T20:00:00-03:00","count":3}}
+
+### Formato
+- Datas em ISO-8601 com timezone. Durações podem ser ISO 8601 ("PT30M") ou minutos.
+- **Nunca** escreva JSON em listas ou parágrafos; sempre use bloco \`\`\`json.
+- Se nada for agendado/alterado, **não** escreva blocos JSON.
+
+Responda **sempre em português**, de forma objetiva e confirmatória.
+`.trim();
+
+
+    let history = [ { role: "system", content: SYSTEM_PROMPT } ];
+
+    async function callPerplexity(userText){
+      const key = (apiKeyEl.value || '').trim();
+      if (!key){ showToast('Cole sua chave da Perplexity no topo.', 'err'); throw new Error('Chave ausente'); }
+      const model = modelEl.value || 'sonar';
+
+      const body = {
+        model,
+        messages: [...history, { role: "user", content: userText }],
+        temperature: 0.2
+      };
+
+      const resp = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!resp.ok){
+        const txt = await resp.text();
+        throw new Error(`Erro API (${resp.status}): ${txt}`);
+      }
+      return resp.json();
+    }
+
+    // ======= Parser de respostas =======
+    function extractJsonFences(text){
+      const fences = [];
+      const regex = /```(?:json|jsonc)?\s*([\s\S]*?)\s*```/gi;
+      let m;
+      while ((m = regex.exec(text)) !== null) {
+        const raw = m[1].trim();
+        fences.push(raw);
+      }
+      return fences;
+    }
+    function tryParseJson(str){
+      try { return JSON.parse(str); } catch { return null; }
+    }
+    function extractInlineJsonByKey(text, key){
+      const results = [];
+      let idx = 0;
+      while ((idx = text.indexOf(`"${key}"`, idx)) !== -1) {
+        let start = text.lastIndexOf('{', idx);
+        if (start === -1) { idx += key.length; continue; }
+        let depth = 0, i = start;
+        for (; i < text.length; i++) {
+          const ch = text[i];
+          if (ch === '{') depth++;
+          else if (ch === '}') {
+            depth--;
+            if (depth === 0) { 
+              const jsonStr = text.slice(start, i+1);
+              const obj = tryParseJson(jsonStr);
+              if (obj && obj[key]) results.push(obj);
+              break;
+            }
+          }
+        }
+        if (i >= text.length) break;
+        idx = i + 1;
+      }
+      return results;
+    }
+    function splitVisibleFromActions(raw){
+      const fences = extractJsonFences(raw);
+      const parsedFromFences = fences.map(tryParseJson).filter(Boolean);
+
+      let visible = raw.replace(/```(?:json|jsonc)?\s*([\s\S]*?)\s*```/gi, '').trim();
+
+      const inlineSchedules = extractInlineJsonByKey(visible, 'schedule');
+      const inlineAvail = extractInlineJsonByKey(visible, 'availability');
+
+      visible = visible
+        .replace(/\{[^{}]*"schedule"[^{}]*\{[\s\S]*?\}[\s\S]*?\}/g, '')
+        .replace(/\{[^{}]*"availability"[^{}]*\{[\s\S]*?\}[\s\S]*?\}/g, '')
+        .trim();
+
+      const actions = { schedules: [], availability: [] };
+      const allParsed = [...parsedFromFences, ...inlineSchedules, ...inlineAvail];
+      allParsed.forEach(p => { if (Array.isArray(p)) p.forEach(x => collectAction(x, actions)); else collectAction(p, actions); });
+
+      return { visibleText: visible, actions, raw };
+    }
+    function collectAction(obj, actions){
+      if (!obj || typeof obj !== 'object') return;
+      if (obj.schedule) actions.schedules.push(obj);
+      if (obj.availability) actions.availability.push(obj.availability);
+    }
+
+    // ======= Execução das ações =======
+    function isoOrDate(v){ return v ? new Date(v) : null; }
+
+    function applyScheduleAction(schedObj){
+      const s = schedObj.schedule || {};
+      const action = (s.action || 'create').toLowerCase();
+
+      if (action === 'delete' && (s.id === 'ALL' || s.id === '*' || s.title === 'ALL' || s.title === '*')){
+        calendar.getEvents().forEach(e => e.remove());
+        saveEvents();
+        clearEventDetails();
+        showToast('Todas as missas foram removidas.');
+        return;
+      }
+      if (action === 'delete' && s.id && s.id !== 'ALL' && s.id !== '*'){
+        const ev = calendar.getEventById(s.id);
+        if (ev){
+          const wasSelected = selectedEvent && selectedEvent.id === ev.id;
+          ev.remove();
+          saveEvents();
+          if (wasSelected) clearEventDetails();
+          showToast('Missa removida.');
+        } else { showToast('Evento não encontrado para remoção.', 'err'); }
+        return;
+      }
+      if (action === 'delete' && s.title && !s.id){
+        let removed = 0;
+        calendar.getEvents().forEach(e => {
+          if ((e.title || '').toLowerCase().includes(String(s.title).toLowerCase())) {
+            const wasSelected = selectedEvent && selectedEvent.id === e.id;
+            e.remove();
+            if (wasSelected) clearEventDetails();
+            removed++;
+          }
+        });
+        saveEvents();
+        if (removed === 0){
+          showToast('Nenhuma missa removida.');
+        } else if (removed === 1){
+          showToast('1 missa removida.');
+        } else {
+          showToast(`${removed} missas removidas.`);
+        }
+        return;
+      }
+
+      if (action === 'move' && (s.id || s.title) && s.deltaMinutes){
+        const delta = Number(s.deltaMinutes) || 0;
+        const targets = findEventsByIdOrTitle(s.id, s.title);
+        if (!targets.length){ showToast('Nenhum evento encontrado para mover.', 'err'); return; }
+        targets.forEach(ev => {
+          const start = new Date(ev.start);
+          const end = ev.end ? new Date(ev.end) : null;
+          start.setMinutes(start.getMinutes() + delta);
+          if (end) end.setMinutes(end.getMinutes() + delta);
+          ev.setDates(start, end, { maintainDuration: !end });
+        });
+        if (selectedEvent && targets.some(ev => ev.id === selectedEvent.id)){
+          showEventDetails(selectedEvent);
+        }
+        saveEvents();
+        const absDelta = Math.abs(delta);
+        const minuteLabel = absDelta === 1 ? 'minuto' : 'minutos';
+        const direction = delta > 0 ? 'para frente' : (delta < 0 ? 'para trás' : '');
+        const moveLabel = targets.length === 1 ? 'Missa movida' : `${targets.length} missas movidas`;
+        const suffix = direction ? ` ${direction}` : '';
+        showToast(`${moveLabel} em ${absDelta} ${minuteLabel}${suffix}.`);
+        return;
+      }
+
+      if (action === 'update' && (s.id || s.title)){
+        const targets = findEventsByIdOrTitle(s.id, s.title);
+        if (!targets.length){ showToast('Nenhum evento encontrado para atualizar.', 'err'); return; }
+        const start = isoOrDate(s.start);
+        const end = isoOrDate(s.end);
+        targets.forEach(ev => {
+          if (s.title && !s.id) ev.setProp('title', s.title);
+          if (start) ev.setStart(start);
+          if (end || start) ev.setEnd(end || null);
+          if (s.location !== undefined){
+            ev.setExtendedProp('location', s.location || '');
+          }
+          if (s.description !== undefined){
+            ev.setExtendedProp('description', s.description || '');
+          }
+          if (s.acolytes !== undefined){
+            ev.setExtendedProp('acolytes', normalizeAcolytes(s.acolytes));
+          }
+        });
+        if (selectedEvent && targets.some(ev => ev.id === selectedEvent.id)){
+          showEventDetails(selectedEvent);
+        }
+        saveEvents();
+        const msg = targets.length === 1 ? 'Evento atualizado.' : `${targets.length} eventos atualizados.`;
+        showToast(msg);
+        return;
+      }
+
+      if (action === 'create'){
+        const title = s.massName || s.title || 'Missa';
+        const location = s.location || '';
+        const description = s.description || '';
+        const acolytes = normalizeAcolytes(s.acolytes);
+        if (s.rrule){
+          let duration = s.duration || s.durationISO || s.durationMinutes;
+          if (typeof duration === 'number') duration = `PT${Math.max(1, duration)}M`;
+          if (!duration && s.start && s.end){
+            const ms = new Date(s.end) - new Date(s.start);
+            duration = `PT${Math.round(ms/60000)}M`;
+          }
+          const evt = prepareEventInput({
+            id: s.id || undefined,
+            title,
+            rrule: s.rrule,
+            duration,
+            extendedProps: { description, location, acolytes, duration }
+          });
+          calendar.addEvent(evt);
+          saveEvents(); showToast('Missa recorrente criada.');
+          return;
+        } else {
+          const start = isoOrDate(s.start);
+          let end = isoOrDate(s.end);
+          if (!start){ showToast('Criação ignorada: "start" ausente.', 'err'); return; }
+          if (!end){
+            const d = new Date(start);
+            const mins = Number(s.durationMinutes) || parseIsoDurationToMinutes(s.duration) || 60;
+            d.setMinutes(d.getMinutes() + mins);
+            end = d;
+          }
+          const created = addEvent({
+            id: s.id || undefined,
+            title,
+            start, end,
+            extendedProps: { description, location, acolytes }
+          });
+          if (created){
+            selectedEvent = created;
+            selectedEventId = created.id;
+            showEventDetails(created);
+          }
+          showToast('Missa criada.');
+          return;
+        }
+      }
+      if (action === 'list'){ return; }
+    }
+
+    function findEventsByIdOrTitle(id, title){
+      if (id){
+        const ev = calendar.getEventById(id);
+        return ev ? [ev] : [];
+      }
+      if (title){
+        return calendar.getEvents().filter(e => (e.title||'').toLowerCase().includes(String(title).toLowerCase()));
+      }
+      return [];
+    }
+
+    function parseIsoDurationToMinutes(iso){
+      if (!iso || typeof iso !== 'string') return 0;
+      const m = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/i);
+      if (!m) return 0;
+      const h = parseInt(m[1]||'0',10), mi = parseInt(m[2]||'0',10), s = parseInt(m[3]||'0',10);
+      return h*60 + mi + Math.round(s/60);
+    }
+
+    function computeAvailability(av){
+      const duration = Number(av.durationMinutes) || 60;
+      const start = av.windowStart ? new Date(av.windowStart) : new Date();
+      const end = av.windowEnd ? new Date(av.windowEnd) : new Date(start.getTime() + 24*60*60000);
+
+      const events = calendar.getEvents().map(e => ({ start: e.start, end: e.end || new Date(e.start.getTime()+60*60000) }))
+        .filter(e => e.start < end && e.end > start)
+        .sort((a,b) => a.start - b.start);
+
+      const merged = [];
+      for (const ev of events){
+        if (!merged.length || ev.start > merged[merged.length-1].end){
+          merged.push({start: new Date(ev.start), end: new Date(ev.end)});
+        } else {
+          merged[merged.length-1].end = new Date(Math.max(merged[merged.length-1].end, ev.end));
+        }
+      }
+
+      const slots = [];
+      let cur = new Date(start);
+      for (const busy of merged){
+        if (busy.start - cur >= duration*60000){
+          slots.push({ start: new Date(cur), end: new Date(cur.getTime()+duration*60000) });
+        }
+        cur = new Date(Math.max(cur, busy.end));
+        if (slots.length >= (av.count || 3)) break;
+      }
+      while (cur < end && slots.length < (av.count || 3)){
+        if (end - cur >= duration*60000){
+          slots.push({ start: new Date(cur), end: new Date(cur.getTime()+duration*60000) });
+        }
+        break;
+      }
+      return slots;
+    }
+
+    async function onSend(){
+      const text = inputEl.value.trim();
+      if (!text) return;
+      inputEl.value = ''; inputEl.dispatchEvent(new Event('input'));
+
+      pushUser(text);
+      sendBtn.disabled = true; sendBtn.textContent = 'Enviando…';
+
+      try {
+        const data = await callPerplexity(text);
+        const choice = data?.choices?.[0];
+        const content = choice?.message?.content || '(sem conteúdo)';
+        const sources = (data?.search_results || []).slice(0,5);
+
+        history.push({ role: 'user', content: text });
+        history.push({ role: 'assistant', content });
+
+        const { visibleText, actions, raw } = splitVisibleFromActions(content);
+
+        if (actions?.schedules?.length){
+          let created = 0;
+          actions.schedules.forEach(s => {
+            applyScheduleAction(s);
+            const a = (s.schedule?.action||'').toLowerCase();
+            if (a === 'create') created++;
+          });
+          if (created > 0){
+            const msg = created === 1 ? 'Criação processada.' : `${created} criações processadas.`;
+            showToast(msg);
+          }
+        }
+
+        pushBot(visibleText || 'Entendido ✅', { details: { raw, actions, sources } });
+
+      } catch (err){
+        console.error(err);
+        pushBot(`Desculpe, houve um erro ao falar com a API.\n\nDetalhes: ${err.message}`);
+        showToast('Falha na chamada à API. Veja a mensagem no chat.', 'err');
+      } finally {
+        sendBtn.disabled = false; sendBtn.textContent = 'Enviar';
+      }
+    }
+
+    // ======= Controles =======
+    sendBtn.addEventListener('click', onSend);
+    inputEl.addEventListener('keydown', (e)=>{ if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onSend(); }});
+
+    revealBtn.addEventListener('click', ()=>{
+      const showing = apiKeyEl.type !== 'password';
+      apiKeyEl.type = showing ? 'password' : 'text';
+      revealBtn.textContent = showing ? 'ver' : 'ocultar';
+      revealBtn.setAttribute('aria-pressed', String(!showing));
+    });
+
+    testBtn.addEventListener('click', async ()=>{
+      try{
+        const data = await callPerplexity('Responda apenas: OK');
+        const txt = data?.choices?.[0]?.message?.content || '';
+        showToast('API respondeu: ' + txt.slice(0,40));
+      }catch(e){
+        showToast('Teste falhou: ' + e.message, 'err');
+      }
+    });
+
+    clearChatBtn.addEventListener('click', ()=>{
+      if (!confirm('Limpar o chat? O calendário será mantido.')) return;
+      messagesEl.innerHTML = '';
+      history = [{ role: 'system', content: SYSTEM_PROMPT }];
+      pushBot('Chat limpo. Como posso ajudar?');
+    });
+
+    apiKeyEl.addEventListener('blur', ()=> {
+      SETTINGS.apiKey = apiKeyEl.value.trim();
+      if (SETTINGS.apiKey) showToast('Chave salva localmente (localStorage).');
+    });
+    modelEl.addEventListener('change', ()=> {
+      SETTINGS.model = modelEl.value;
+      showToast(`Modelo definido: ${modelEl.value}`);
+    });
+
+    // ======= Utils =======
+    function escapeHtml(s){ return (s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+    function mdToHtml(s){
+      const esc = escapeHtml(s || '');
+      let out = esc.replace(/```([\s\S]*?)```/g, (m, code)=> `<pre><code>${code}</code></pre>`);
+      out = out.replace(/`([^`]+)`/g,'<code class="inline">$1</code>');
+      out = out
+        .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g,'<em>$1</em>')
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a target="_blank" href="$2">$1</a>')
+        .replace(/\n/g,'<br/>');
+      return out;
+    }
+  </script>
+</body>
+</html>
+

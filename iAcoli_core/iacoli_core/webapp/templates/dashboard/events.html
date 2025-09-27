@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-calendar me-2"></i>
+                Gerenciar Eventos
+            </h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEventModal">
+                <i class="fas fa-plus me-2"></i>
+                Criar Evento
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de eventos -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>
+                    Eventos Programados ({{ events|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if events %}
+                <div class="table-responsive">
+                    <table class="table table-striped" id="events-table">
+                        <thead>
+                            <tr>
+                                <th>Evento</th>
+                                <th>Comunidade</th>
+                                <th>Data/Hora</th>
+                                <th>Tipo</th>
+                                <th>Quantidade</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in events %}
+                            <tr data-event-id="{{ event.id }}">
+                                <td>
+                                    <strong>{{ event.key() }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ event.community }}</span>
+                                </td>
+                                <td>
+                                    {{ event.dtstart.strftime('%d/%m/%Y às %H:%M') }}
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ event.kind }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ event.quantity }}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="editEvent('{{ event.id }}')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="deleteEvent('{{ event.id }}', '{{ event.key() }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar fa-3x text-muted mb-3"></i>
+                    <h5>Nenhum evento programado</h5>
+                    <p class="text-muted">Clique no botão "Criar Evento" para começar.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para adicionar evento -->
+<div class="modal fade" id="addEventModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Criar Novo Evento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addEventForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="eventCommunity" class="form-label">Comunidade *</label>
+                        <input type="text" class="form-control" id="eventCommunity" name="community" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="eventDate" class="form-label">Data *</label>
+                                <input type="date" class="form-control" id="eventDate" name="date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="eventTime" class="form-label">Horário *</label>
+                                <input type="time" class="form-control" id="eventTime" name="time" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="eventQuantity" class="form-label">Quantidade de Acólitos *</label>
+                                <input type="number" class="form-control" id="eventQuantity" name="quantity" min="1" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="eventKind" class="form-label">Tipo</label>
+                                <select class="form-select" id="eventKind" name="kind">
+                                    <option value="REG" selected>Regular (REG)</option>
+                                    <option value="SOLENE">Solene</option>
+                                    <option value="ESPECIAL">Especial</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="eventDtend" class="form-label">Data/Hora de Término (opcional)</label>
+                        <input type="datetime-local" class="form-control" id="eventDtend" name="dtend">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Criar Evento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Definir data padrão para hoje
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('eventDate').value = today;
+});
+
+// Adicionar novo evento
+document.getElementById('addEventForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    
+    const data = {
+        community: formData.get('community'),
+        date: formData.get('date'),
+        time: formData.get('time'),
+        quantity: parseInt(formData.get('quantity')),
+        kind: formData.get('kind'),
+        dtend: formData.get('dtend') || null
+    };
+    
+    try {
+        const response = await fetch('/api/events/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('addEventModal')).hide();
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Erro ao criar evento: ' + error.detail);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao criar evento. Verifique a conexão.');
+    }
+});
+
+// Deletar evento
+async function deleteEvent(eventId, eventKey) {
+    if (!confirm(`Tem certeza que deseja remover o evento "${eventKey}"? Esta ação não pode ser desfeita.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/events/${eventId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Erro ao remover evento: ' + error.detail);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao remover evento. Verifique a conexão.');
+    }
+}
+
+// Função de edição (placeholder)
+function editEvent(eventId) {
+    alert('Funcionalidade de edição será implementada em breve!');
+}
+</script>
+{% endblock %}

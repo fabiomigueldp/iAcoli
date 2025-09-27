@@ -1,0 +1,3 @@
+[console_scripts]
+escala-cli = iacoli_core.cli:main
+escala-web = iacoli_core.webapp.serve:main

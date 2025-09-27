@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-tachometer-alt me-2"></i>
+            Dashboard Principal
+        </h1>
+    </div>
+</div>
+
+<!-- Cards de estatísticas -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ people_count }}</h4>
+                        <p class="card-text">Total de Pessoas</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <small>{{ active_people }} ativas</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ events_count }}</h4>
+                        <p class="card-text">Eventos Programados</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <small>Próximos eventos</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">100%</h4>
+                        <p class="card-text">Sistema Operacional</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-heartbeat fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <small>Todos os serviços ativos</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ações rápidas -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt me-2"></i>
+                    Ações Rápidas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <a href="/dashboard/people" class="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center">
+                            <i class="fas fa-user-plus fa-2x mb-2"></i>
+                            <span>Adicionar Pessoa</span>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <a href="/dashboard/events" class="btn btn-outline-success w-100 h-100 d-flex flex-column justify-content-center">
+                            <i class="fas fa-calendar-plus fa-2x mb-2"></i>
+                            <span>Criar Evento</span>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <a href="/dashboard/schedule" class="btn btn-outline-info w-100 h-100 d-flex flex-column justify-content-center">
+                            <i class="fas fa-sync fa-2x mb-2"></i>
+                            <span>Recalcular Escala</span>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <a href="/docs" target="_blank" class="btn btn-outline-secondary w-100 h-100 d-flex flex-column justify-content-center">
+                            <i class="fas fa-book fa-2x mb-2"></i>
+                            <span>Ver API</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Próximos eventos -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-calendar-check me-2"></i>
+                    Próximos Eventos
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="next-events-loading" class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                </div>
+                <div id="next-events-content" style="display: none;">
+                    <!-- Conteúdo será carregado via JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Carregar próximos eventos
+async function loadNextEvents() {
+    try {
+        const response = await fetch('/api/events/');
+        const events = await response.json();
+        
+        const loading = document.getElementById('next-events-loading');
+        const content = document.getElementById('next-events-content');
+        
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        
+        if (events.length === 0) {
+            content.innerHTML = '<p class="text-muted">Nenhum evento programado.</p>';
+            return;
+        }
+        
+        // Mostrar próximos 5 eventos
+        const nextEvents = events.slice(0, 5);
+        let html = '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>Evento</th><th>Comunidade</th><th>Data/Hora</th><th>Tipo</th></tr></thead><tbody>';
+        
+        nextEvents.forEach(event => {
+            const date = new Date(event.dtstart);
+            const formattedDate = date.toLocaleDateString('pt-BR');
+            const formattedTime = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            
+            html += `<tr>
+                <td><strong>${event.key}</strong></td>
+                <td><span class="badge bg-secondary">${event.community}</span></td>
+                <td>${formattedDate} às ${formattedTime}</td>
+                <td><span class="badge bg-primary">${event.kind}</span></td>
+            </tr>`;
+        });
+        
+        html += '</tbody></table></div>';
+        content.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Erro ao carregar eventos:', error);
+        const loading = document.getElementById('next-events-loading');
+        const content = document.getElementById('next-events-content');
+        
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        content.innerHTML = '<p class="text-danger">Erro ao carregar eventos. Verifique a API.</p>';
+    }
+}
+
+// Carregar dados quando a página estiver pronta
+document.addEventListener('DOMContentLoaded', function() {
+    loadNextEvents();
+});
+</script>
+{% endblock %}

@@ -1,6 +1,42 @@
 {
-  "people": [],
-  "events": [],
+  "people": [
+    {
+      "id": "0abd1af8-d229-4bda-8e8b-7b6d484117f5",
+      "name": "Fábio",
+      "community": "STM",
+      "roles": [
+        "LIB"
+      ],
+      "morning": false,
+      "active": true,
+      "locale": null
+    },
+    {
+      "id": "3eeb4f39-cd84-412c-b747-19349e28916d",
+      "name": "Maria Fernanda",
+      "community": "STM",
+      "roles": [
+        "CRU",
+        "LIB",
+        "MIC"
+      ],
+      "morning": false,
+      "active": true,
+      "locale": null
+    }
+  ],
+  "events": [
+    {
+      "id": "67b00472-ad95-41fe-ab0e-7da9dbf564f8",
+      "community": "MAT",
+      "dtstart": "2025-09-28T10:30:00-03:00",
+      "dtend": null,
+      "quantity": 2,
+      "kind": "SOLENE",
+      "pool": [],
+      "metadata": {}
+    }
+  ],
   "series": [],
   "recurrences": [],
   "assignments": [],

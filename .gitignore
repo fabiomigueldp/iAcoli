@@ -1,1 +1,6 @@
 .DS_Store
+
+# Arquivos de ambiente (contém informações sensíveis)
+.env
+.env.*
+!.env.example

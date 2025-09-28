@@ -1,11 +1,13 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import logging
 import os
 import re
+from dataclasses import dataclass, field
 from datetime import date, datetime, time
-from typing import Any, Dict, List, Sequence
+from urllib.parse import parse_qsl, urlsplit
+from typing import Any, Callable, Dict, List, Sequence
 from uuid import UUID
 
 try:
@@ -13,12 +15,52 @@ try:
 except ImportError:  # pragma: no cover - package may be optional locally
     OpenAI = None  # type: ignore[assignment]
 
+from ..config import FairnessConfig, GeneralConfig, WeightConfig
 from ..errors import ValidationError
 from ..utils import strip_diacritics
 from ..webapp.container import ServiceContainer
 from .prompt_builder import build_system_prompt
 
 PLACEHOLDER_PATTERN = re.compile(r"\{\{([^{}]+)\}\}")
+PATH_PARAM_PATTERN = re.compile(r"{([^{}]+)}")
+
+
+@dataclass(slots=True)
+class EndpointHandler:
+    method: str
+    template: str
+    func: Callable[..., Any]
+    expect_payload: bool = True
+    expect_query: bool = False
+    param_names: list[str] = field(init=False)
+    regex: re.Pattern[str] = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.method = self.method.upper()
+        self.param_names: list[str] = PATH_PARAM_PATTERN.findall(self.template)
+        self.regex = self._compile_regex(self.template)
+
+    def match(self, path: str) -> dict[str, str] | None:
+        if path == self.template:
+            return {}
+        match = self.regex.match(path)
+        if not match:
+            return None
+        return {key: value for key, value in match.groupdict().items() if value is not None}
+
+    @staticmethod
+    def _compile_regex(template: str) -> re.Pattern[str]:
+        parts: list[str] = []
+        cursor = 0
+        for match in PATH_PARAM_PATTERN.finditer(template):
+            start, end = match.span()
+            parts.append(re.escape(template[cursor:start]))
+            name = match.group(1)
+            parts.append(f"(?P<{name}>[^/]+)")
+            cursor = end
+        parts.append(re.escape(template[cursor:]))
+        pattern = "^" + "".join(parts) + "$"
+        return re.compile(pattern)
 
 
 class AgentOrchestrator:
@@ -27,18 +69,70 @@ class AgentOrchestrator:
     def __init__(self, container: ServiceContainer) -> None:
         self.container = container
         self.logger = logging.getLogger(__name__)
-        # Mapeamento de endpoints para métodos
-        self.endpoint_map = {
-            ("POST", "/api/events"): self._create_event,
-            ("DELETE", "/api/events/{identifier}"): self._delete_event,
-            ("GET", "/api/events"): self._list_events,
-            ("POST", "/api/series"): self._create_series,
-            ("POST", "/api/people"): self._create_person,
-            ("GET", "/api/people"): self._list_people,
-            ("GET", "/api/people/{identifier}"): self._get_person,
-            ("PUT", "/api/people/{identifier}"): self._update_person,
-            ("PATCH", "/api/people/{identifier}"): self._update_person,
-        }
+        # Map endpoints to orchestrator handlers
+        self._handlers: list[EndpointHandler] = []
+        self._register_endpoint("POST", "/api/events", self._create_event)
+        self._register_endpoint("GET", "/api/events", self._list_events)
+        self._register_endpoint("GET", "/api/events/{identifier}", self._get_event_detail, expect_payload=False)
+        self._register_endpoint("PUT", "/api/events/{identifier}", self._update_event)
+        self._register_endpoint("DELETE", "/api/events/{identifier}", self._delete_event, expect_payload=False)
+        self._register_endpoint("GET", "/api/events/{identifier}/pool", self._get_event_pool, expect_payload=False)
+        self._register_endpoint("POST", "/api/events/{identifier}/pool", self._set_event_pool)
+        self._register_endpoint("DELETE", "/api/events/{identifier}/pool", self._clear_event_pool, expect_payload=False)
+
+        self._register_endpoint("POST", "/api/series", self._create_series)
+        self._register_endpoint("GET", "/api/series", self._list_series, expect_payload=False)
+        self._register_endpoint("PATCH", "/api/series/{series_id}", self._update_series)
+        self._register_endpoint("DELETE", "/api/series/{series_id}", self._delete_series, expect_payload=False)
+
+        self._register_endpoint("GET", "/api/series/recorrencias", self._list_recurrences, expect_payload=False)
+        self._register_endpoint("POST", "/api/series/recorrencias", self._create_recurrence)
+        self._register_endpoint("PATCH", "/api/series/recorrencias/{recurrence_id}", self._update_recurrence)
+        self._register_endpoint("DELETE", "/api/series/recorrencias/{recurrence_id}", self._delete_recurrence, expect_payload=False)
+
+        self._register_endpoint("POST", "/api/people", self._create_person)
+        self._register_endpoint("GET", "/api/people", self._list_people)
+        self._register_endpoint("GET", "/api/people/{identifier}", self._get_person, expect_payload=False)
+        self._register_endpoint("PUT", "/api/people/{identifier}", self._update_person)
+        self._register_endpoint("PATCH", "/api/people/{identifier}", self._update_person)
+        self._register_endpoint("DELETE", "/api/people/{identifier}", self._delete_person, expect_payload=False)
+        self._register_endpoint("GET", "/api/people/{person_id}/blocks", self._list_person_blocks, expect_payload=False)
+        self._register_endpoint("POST", "/api/people/{person_id}/blocks", self._add_person_block)
+        self._register_endpoint("DELETE", "/api/people/{person_id}/blocks", self._remove_person_block, expect_payload=True, expect_query=True)
+
+        self._register_endpoint("GET", "/api/schedule/lista", self._schedule_list)
+        self._register_endpoint("GET", "/api/schedule/livres", self._schedule_free)
+        self._register_endpoint("GET", "/api/schedule/checagem", self._schedule_check)
+        self._register_endpoint("GET", "/api/schedule/estatisticas", self._schedule_stats)
+        self._register_endpoint("GET", "/api/schedule/sugestoes", self._schedule_suggestions)
+        self._register_endpoint("GET", "/api/schedule/suggestions", self._schedule_suggestions)
+        self._register_endpoint("POST", "/api/schedule/recalcular", self._schedule_recalculate)
+        self._register_endpoint("POST", "/api/schedule/recalculate", self._schedule_recalculate)
+        self._register_endpoint("POST", "/api/schedule/resetar", self._schedule_reset)
+        self._register_endpoint("POST", "/api/schedule/assignments/apply", self._schedule_apply_assignment)
+        self._register_endpoint("POST", "/api/schedule/atribuir", self._schedule_apply_assignment)
+        self._register_endpoint("POST", "/api/schedule/assignments/clear", self._schedule_clear_assignment)
+        self._register_endpoint("POST", "/api/schedule/limpar", self._schedule_clear_assignment)
+        self._register_endpoint("POST", "/api/schedule/trocar", self._schedule_swap_assignments)
+
+        self._register_endpoint("GET", "/api/config", self._get_config, expect_payload=False)
+        self._register_endpoint("PUT", "/api/config", self._update_config)
+        self._register_endpoint("POST", "/api/config/recarregar", self._reload_config, expect_payload=False)
+
+        self._register_endpoint("POST", "/api/system/salvar", self._save_state)
+        self._register_endpoint("POST", "/api/system/carregar", self._load_state)
+        self._register_endpoint("POST", "/api/system/undo", self._undo_last, expect_payload=False)
+
+    def _register_endpoint(
+        self,
+        method: str,
+        template: str,
+        handler: Callable[..., Any],
+        *,
+        expect_payload: bool = True,
+        expect_query: bool = False,
+    ) -> None:
+        self._handlers.append(EndpointHandler(method, template, handler, expect_payload, expect_query))
 
     def interact(self, user_prompt: str) -> Dict[str, Any]:
         system_prompt = build_system_prompt(user_prompt)
@@ -298,43 +392,141 @@ class AgentOrchestrator:
 
     def _dispatch(self, endpoint: Any, payload: Dict[str, Any]) -> Any:
         if not isinstance(endpoint, str):
-            raise ValueError("Endpoint é obrigatório para cada api_call.")
+            raise ValueError("Endpoint deve ser uma string no formato 'METHOD /path'.")
 
-        parts = endpoint.strip().split()
+        parts = endpoint.strip().split(maxsplit=1)
         if len(parts) != 2:
-            raise ValueError(f"Formato de endpoint inválido: {endpoint}")
+            raise ValueError(f"Formato de endpoint invalido: {endpoint}")
 
-        method, path = parts[0].upper(), parts[1]
+        method, raw_path = parts[0].upper(), parts[1]
+        parsed = urlsplit(raw_path)
+        path = parsed.path or ""
+        query_params = self._parse_query_string(parsed.query)
+        base_payload = dict(payload) if payload else {}
 
-        # Lógica para endpoints com placeholders (identificadores)
-        if "{identifier}" in path:
-            key_template = (method, path)
-            if key_template in self.endpoint_map:
-                # Extrai o identificador do payload ou da URL
-                identifier = payload.get("identifier") or payload.get("person_id")
-                if not identifier:
-                    # Tenta extrair da URL se o LLM colocou lá diretamente
-                    if "/api/events/" in path:
-                        identifier = path.split("/api/events/")[1]
-                    elif "/api/people/" in path:
-                        identifier = path.split("/api/people/")[1]
+        for handler in self._handlers:
+            if handler.method != method:
+                continue
+            match = handler.match(path)
+            if match is None:
+                continue
 
-                if not identifier:
-                    raise ValueError(f"Identifier não encontrado no payload para o endpoint {endpoint}")
-                
-                # Para métodos de atualização, o identifier vai como primeiro argumento
-                if method in {"PUT", "PATCH"}:
-                    return self.endpoint_map[key_template](identifier, payload)
-                else:
-                    return self.endpoint_map[key_template](identifier)
-        
-        # Endpoints simples (sem placeholders)
-        key = (method, path)
-        if key in self.endpoint_map:
-            return self.endpoint_map[key](payload)
+            payload_data = dict(base_payload)
+            if not handler.expect_query:
+                for key, value in query_params.items():
+                    payload_data.setdefault(key, value)
 
-        # Se chegou aqui, o endpoint não é suportado
-        raise ValueError(f"Endpoint não suportado: {endpoint}")
+            args: list[str] = []
+            for name in handler.param_names:
+                value = self._resolve_path_value(name, match, payload_data, query_params, handler.template)
+                args.append(value)
+
+            if handler.expect_payload and handler.expect_query:
+                return handler.func(*args, payload_data, query_params)
+            if handler.expect_payload:
+                return handler.func(*args, payload_data)
+            if handler.expect_query:
+                return handler.func(*args, query_params)
+            return handler.func(*args)
+
+        raise ValueError(f"Endpoint nao suportado: {endpoint}")
+
+    def _parse_query_string(self, query: str) -> Dict[str, Any]:
+        if not query:
+            return {}
+        collected: Dict[str, List[str]] = {}
+        for key, value in parse_qsl(query, keep_blank_values=True):
+            collected.setdefault(key, []).append(value)
+        result: Dict[str, Any] = {}
+        for key, values in collected.items():
+            if len(values) == 1:
+                result[key] = values[0]
+            else:
+                result[key] = values
+        return result
+
+    def _resolve_path_value(
+        self,
+        name: str,
+        path_values: Dict[str, str],
+        payload: Dict[str, Any],
+        query_params: Dict[str, Any],
+        template: str,
+    ) -> str:
+        if name in path_values and path_values[name]:
+            return str(path_values[name])
+        for alias in self._path_param_aliases(name):
+            if alias in path_values and path_values[alias]:
+                return str(path_values[alias])
+            if alias in payload and payload[alias] not in (None, ""):
+                value = payload[alias]
+                if isinstance(value, (list, tuple)):
+                    value = value[0]
+                return str(value)
+            if alias in query_params and query_params[alias] not in (None, ""):
+                value = query_params[alias]
+                if isinstance(value, list):
+                    value = value[0]
+                return str(value)
+        raise ValueError(f"Identifier {name} missing for endpoint {template}")
+
+    def _path_param_aliases(self, name: str) -> List[str]:
+        alias_map: Dict[str, List[str]] = {
+            "identifier": ["identifier", "id", "event", "event_id", "person", "person_id", "series_id", "recurrence_id"],
+            "person_id": ["person_id", "identifier", "id", "person"],
+            "series_id": ["series_id", "identifier", "id"],
+            "recurrence_id": ["recurrence_id", "identifier", "id"],
+        }
+        return alias_map.get(name, [name])
+
+    def _clean_string(self, value: Any) -> str | None:
+        if value in (None, ""):
+            return None
+        text = str(value).strip()
+        return text or None
+
+    def _coerce_str_list(self, value: Any) -> List[str] | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            text = value.strip()
+            return [text] if text else None
+        if isinstance(value, (list, tuple, set)):
+            items: List[str] = []
+            for item in value:
+                text_item = str(item).strip()
+                if text_item:
+                    items.append(text_item)
+            return items or None
+        text = str(value).strip()
+        return [text] if text else None
+
+    def _dump_config(self, config: Any) -> Dict[str, Any]:
+        packs_payload: Dict[int, List[str]] = {}
+        for key, members in config.packs.items():
+            packs_payload[int(key)] = list(members)
+        return {
+            "general": {
+                "timezone": config.general.timezone,
+                "default_view_days": config.general.default_view_days,
+                "name_width": config.general.name_width,
+                "overlap_minutes": config.general.overlap_minutes,
+                "default_locale": config.general.default_locale,
+            },
+            "fairness": {
+                "fair_window_days": config.fairness.fair_window_days,
+                "role_rot_window_days": config.fairness.role_rot_window_days,
+                "workload_tolerance": config.fairness.workload_tolerance,
+            },
+            "weights": {
+                "load_balance": config.weights.load_balance,
+                "recency": config.weights.recency,
+                "role_rotation": config.weights.role_rotation,
+                "morning_pref": config.weights.morning_pref,
+                "solene_bonus": config.weights.solene_bonus,
+            },
+            "packs": packs_payload,
+        }
 
     def _create_event(self, payload: Dict[str, Any]) -> Any:
         community = str(payload["community"]).strip()
@@ -360,6 +552,75 @@ class AgentOrchestrator:
             pool=pool,
             dtend=dtend_value,
         )
+
+    def _get_event_detail(self, identifier: str) -> Dict[str, Any]:
+        def action() -> Dict[str, Any]:
+            event = self.container.service.get_event(identifier)
+            data = self._serialize_event(event)
+            assignments = self.container.service.state.assignments.get(event.id, {})
+            people = self.container.service.state.people
+            data["assignments"] = [
+                {
+                    "role": role,
+                    "person_id": str(pid),
+                    "person_name": people.get(pid).name if people.get(pid) else None,
+                }
+                for role, pid in sorted(assignments.items())
+            ]
+            return data
+
+        return self.container.read(action)
+
+    def _update_event(self, identifier: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        updates = self._ensure_dict(payload)
+        community_value: str | None = None
+        if "community" in updates:
+            community_value = str(updates["community"]).strip()
+            if not community_value:
+                raise ValueError("community cannot be empty.")
+        date_value: str | None = None
+        if "date" in updates:
+            date_value = self._parse_date(updates["date"])
+        time_value: str | None = None
+        if "time" in updates:
+            time_value = self._parse_time(updates["time"])
+        quantity_value: int | None = None
+        if "quantity" in updates:
+            quantity_value = self._parse_int(updates["quantity"], field="quantity")
+        kind_value: str | None = None
+        if "kind" in updates:
+            kind = str(updates["kind"]).strip()
+            kind_value = kind.upper() if kind else None
+        pool_value = self._parse_uuid_list(updates.get("pool")) if "pool" in updates else None
+        dtend_value = self._parse_datetime(updates["dtend"]) if "dtend" in updates else None
+
+        if all(
+            value is None
+            for value in (
+                community_value,
+                date_value,
+                time_value,
+                quantity_value,
+                kind_value,
+                pool_value,
+                dtend_value,
+            )
+        ):
+            raise ValueError("Nenhuma alteracao informada para o evento.")
+
+        event = self.container.mutate(
+            self.container.service.update_event,
+            identifier,
+            community=community_value,
+            date_str=date_value,
+            time_str=time_value,
+            quantity=quantity_value,
+            kind=kind_value,
+            pool=pool_value,
+            tz_name=self.container.config.general.timezone,
+            dtend=dtend_value,
+        )
+        return self._serialize_event(event)
 
     def _delete_event(self, identifier: str) -> Dict[str, Any]:
         if not identifier:
@@ -400,6 +661,26 @@ class AgentOrchestrator:
             items.append(self._serialize_event(event))
         return items
 
+    def _get_event_pool(self, identifier: str) -> Dict[str, Any]:
+        return self.container.read(lambda: self.container.service.pool_info(identifier))
+
+    def _set_event_pool(self, identifier: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        data = self._ensure_dict(payload)
+        members = data.get("members")
+        if members is None:
+            raise ValueError("members is required to set the pool.")
+        pool_members = self._parse_uuid_list(members) or []
+        self.container.mutate(self.container.service.set_pool, identifier, pool_members)
+        return self.container.read(lambda: self.container.service.pool_info(identifier))
+
+    def _clear_event_pool(self, identifier: str) -> Dict[str, Any]:
+        self.container.mutate(self.container.service.clear_pool, identifier)
+        return self.container.read(lambda: self.container.service.pool_info(identifier))
+
+    def _list_series(self) -> List[Dict[str, Any]]:
+        items = self.container.read(lambda: list(self.container.service.state.series.values()))
+        return [self._to_serializable(item) for item in items]
+
     def _create_series(self, payload: Dict[str, Any]) -> Any:
         base_event_id = self._parse_uuid(payload["base_event_id"], field="base_event_id")
         days = self._parse_int(payload["days"], field="days")
@@ -413,6 +694,90 @@ class AgentOrchestrator:
             kind=kind,
             pool=pool,
         )
+
+    def _update_series(self, series_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        updates = self._ensure_dict(payload)
+        if "new_base_event_id" not in updates and "pool" not in updates:
+            raise ValueError("Nenhuma alteracao informada para a serie.")
+
+        series_uuid = self._parse_uuid(series_id, field="series_id")
+        base_uuid = None
+        if "new_base_event_id" in updates and updates["new_base_event_id"] not in (None, ""):
+            base_uuid = self._parse_uuid(updates["new_base_event_id"], field="new_base_event_id")
+        pool_value = self._parse_uuid_list(updates.get("pool")) if "pool" in updates else None
+
+        def action() -> Any:
+            current = self.container.service.state.series.get(series_uuid)
+            if not current:
+                raise ValidationError("Serie nao encontrada.")
+            target_base = base_uuid or current.base_event_id
+            return self.container.service.rebase_series(
+                series_id=series_uuid,
+                new_base_event_id=target_base,
+                pool=pool_value,
+            )
+
+        series = self.container.mutate(action)
+        return self._to_serializable(series)
+
+    def _delete_series(self, series_id: str) -> Dict[str, Any]:
+        series_uuid = self._parse_uuid(series_id, field="series_id")
+        self.container.mutate(self.container.service.remove_series, series_uuid)
+        return {"detail": f"Serie {series_id} removida."}
+
+    def _list_recurrences(self) -> List[Dict[str, Any]]:
+        items = self.container.read(lambda: list(self.container.service.state.recurrences.values()))
+        return [self._to_serializable(item) for item in items]
+
+    def _create_recurrence(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        data = self._ensure_dict(payload)
+        community = str(data["community"]).strip()
+        if not community:
+            raise ValueError("community is required.")
+        dtstart = self._parse_datetime(data.get("dtstart_base"))
+        if dtstart is None:
+            raise ValueError("dtstart_base must be an ISO datetime string.")
+        rrule = str(data.get("rrule", "")).strip()
+        if not rrule:
+            raise ValueError("rrule is required.")
+        quantity = self._parse_int(data["quantity"], field="quantity")
+        pool = self._parse_uuid_list(data.get("pool"))
+        item = self.container.mutate(
+            self.container.service.create_recurrence,
+            community=community,
+            dtstart_base=dtstart,
+            rrule=rrule,
+            quantity=quantity,
+            pool=pool,
+        )
+        return self._to_serializable(item)
+
+    def _update_recurrence(self, recurrence_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        updates = self._ensure_dict(payload)
+        if not updates:
+            raise ValueError("Nenhuma alteracao informada para a recorrencia.")
+        recurrence_uuid = self._parse_uuid(recurrence_id, field="recurrence_id")
+        rrule = None
+        if "rrule" in updates:
+            value = str(updates["rrule"]).strip()
+            rrule = value or None
+        quantity = None
+        if "quantity" in updates:
+            quantity = self._parse_int(updates["quantity"], field="quantity")
+        pool = self._parse_uuid_list(updates.get("pool")) if "pool" in updates else None
+        item = self.container.mutate(
+            self.container.service.update_recurrence,
+            recurrence_uuid,
+            rrule=rrule,
+            quantity=quantity,
+            pool=pool,
+        )
+        return self._to_serializable(item)
+
+    def _delete_recurrence(self, recurrence_id: str) -> Dict[str, Any]:
+        recurrence_uuid = self._parse_uuid(recurrence_id, field="recurrence_id")
+        self.container.mutate(self.container.service.remove_recurrence, recurrence_uuid)
+        return {"detail": f"Recorrencia {recurrence_id} removida."}
 
     def _create_person(self, payload: Dict[str, Any]) -> Any:
         name = str(payload["name"]).strip()
@@ -537,6 +902,279 @@ class AgentOrchestrator:
             **sanitized,
         )
         return person.to_dict()
+
+    def _delete_person(self, identifier: str) -> Dict[str, Any]:
+        person_id = self._parse_uuid(identifier, field="person_id")
+        self.container.mutate(self.container.service.remove_person, person_id)
+        return {"detail": f"Pessoa {identifier} removida."}
+
+    def _list_person_blocks(self, person_id: str) -> List[Dict[str, Any]]:
+        pid = self._parse_uuid(person_id, field="person_id")
+        blocks = self.container.read(lambda: self.container.service.list_blocks(pid))
+        return [block.to_dict() for block in blocks]
+
+    def _add_person_block(self, person_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        pid = self._parse_uuid(person_id, field="person_id")
+        data = self._ensure_dict(payload)
+        start_dt = self._parse_datetime(data.get("start"))
+        if start_dt is None:
+            raise ValueError("start datetime is required.")
+        end_dt = self._parse_datetime(data.get("end"))
+        if end_dt is None:
+            raise ValueError("end datetime is required.")
+        note = data.get("note")
+        if note is not None:
+            note = str(note).strip() or None
+        self.container.mutate(
+            self.container.service.add_block,
+            pid,
+            start=start_dt,
+            end=end_dt,
+            note=note,
+        )
+        return {"detail": "Bloqueio adicionado."}
+
+    def _remove_person_block(
+        self,
+        person_id: str,
+        payload: Dict[str, Any],
+        query_params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        pid = self._parse_uuid(person_id, field="person_id")
+        merged = self._ensure_dict(payload)
+        for key, value in query_params.items():
+            merged.setdefault(key, value)
+        remove_all = False
+        if "all" in merged:
+            remove_all = self._parse_bool(merged["all"], field="all")
+        elif "remove_all" in merged:
+            remove_all = self._parse_bool(merged["remove_all"], field="remove_all")
+        index_value = merged.get("index")
+        index_int = None
+        if index_value is not None:
+            index_int = self._parse_int(index_value, field="index")
+        if not remove_all and index_int is None:
+            raise ValueError("Informe all=true ou um index para remover o bloqueio.")
+        self.container.mutate(
+            self.container.service.remove_block,
+            pid,
+            index=index_int,
+            remove_all=remove_all,
+        )
+        return {"detail": "Bloqueio removido."}
+
+    def _schedule_list(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        filters = self._ensure_dict(payload)
+        periodo = self._clean_string(filters.get("periodo"))
+        de = self._clean_string(filters.get("de"))
+        ate = self._clean_string(filters.get("ate"))
+        communities = self._coerce_str_list(filters.get("communities") or filters.get("community"))
+        roles = self._coerce_str_list(filters.get("roles"))
+        return self.container.read(
+            lambda: self.container.service.list_schedule(
+                periodo=periodo,
+                de=de,
+                ate=ate,
+                communities=communities,
+                roles=roles,
+            )
+        )
+
+    def _schedule_free(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        filters = self._ensure_dict(payload)
+        periodo = self._clean_string(filters.get("periodo"))
+        de = self._clean_string(filters.get("de"))
+        ate = self._clean_string(filters.get("ate"))
+        communities = self._coerce_str_list(filters.get("communities") or filters.get("community"))
+        return self.container.read(
+            lambda: self.container.service.list_free_slots(
+                periodo=periodo,
+                de=de,
+                ate=ate,
+                communities=communities,
+            )
+        )
+
+    def _schedule_check(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        filters = self._ensure_dict(payload)
+        periodo = self._clean_string(filters.get("periodo"))
+        de = self._clean_string(filters.get("de"))
+        ate = self._clean_string(filters.get("ate"))
+        communities = self._coerce_str_list(filters.get("communities") or filters.get("community"))
+        return self.container.read(
+            lambda: self.container.service.check_schedule(
+                periodo=periodo,
+                de=de,
+                ate=ate,
+                communities=communities,
+            )
+        )
+
+    def _schedule_stats(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        filters = self._ensure_dict(payload)
+        periodo = self._clean_string(filters.get("periodo"))
+        de = self._clean_string(filters.get("de"))
+        ate = self._clean_string(filters.get("ate"))
+        communities = self._coerce_str_list(filters.get("communities") or filters.get("community"))
+        return self.container.read(
+            lambda: self.container.service.stats(
+                periodo=periodo,
+                de=de,
+                ate=ate,
+                communities=communities,
+            )
+        )
+
+    def _schedule_suggestions(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        filters = self._ensure_dict(payload)
+        event_identifier = self._clean_string(filters.get("event"))
+        if not event_identifier:
+            raise ValueError("event parameter is required.")
+        role = self._clean_string(filters.get("role"))
+        if not role:
+            raise ValueError("role parameter is required.")
+        top_value = filters.get("top")
+        top = self._parse_int(top_value, field="top") if top_value not in (None, "") else 5
+        seed_value = filters.get("seed")
+        seed = self._parse_int(seed_value, field="seed") if seed_value not in (None, "") else None
+        return self.container.read(
+            lambda: self.container.service.suggest_candidates(
+                event_identifier,
+                role,
+                top=top,
+                seed=seed,
+            )
+        )
+
+    def _schedule_recalculate(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        filters = self._ensure_dict(payload)
+        periodo = self._clean_string(filters.get("periodo"))
+        de = self._clean_string(filters.get("de"))
+        ate = self._clean_string(filters.get("ate"))
+        seed_value = filters.get("seed")
+        seed = self._parse_int(seed_value, field="seed") if seed_value not in (None, "") else None
+        self.container.mutate(
+            self.container.service.recalculate,
+            periodo=periodo,
+            de=de,
+            ate=ate,
+            seed=seed,
+        )
+        return {"detail": "Escala recalculada."}
+
+    def _schedule_reset(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        filters = self._ensure_dict(payload)
+        periodo = self._clean_string(filters.get("periodo"))
+        de = self._clean_string(filters.get("de"))
+        ate = self._clean_string(filters.get("ate"))
+        self.container.mutate(
+            self.container.service.reset_assignments,
+            periodo=periodo,
+            de=de,
+            ate=ate,
+        )
+        return {"detail": "Atribuicoes reiniciadas."}
+
+    def _schedule_apply_assignment(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        data = self._ensure_dict(payload)
+        event_identifier = self._clean_string(data.get("event"))
+        role = self._clean_string(data.get("role"))
+        if not event_identifier or not role:
+            raise ValueError("event and role are required.")
+        person_id = self._parse_uuid(data["person_id"], field="person_id")
+        self.container.mutate(
+            self.container.service.apply_assignment,
+            event_identifier,
+            role,
+            person_id,
+        )
+        return {"detail": "Atribuicao aplicada."}
+
+    def _schedule_clear_assignment(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        data = self._ensure_dict(payload)
+        event_identifier = self._clean_string(data.get("event"))
+        role = self._clean_string(data.get("role"))
+        if not event_identifier or not role:
+            raise ValueError("event and role are required.")
+        self.container.mutate(
+            self.container.service.clear_assignment,
+            event_identifier,
+            role,
+        )
+        return {"detail": "Atribuicao removida."}
+
+    def _schedule_swap_assignments(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        data = self._ensure_dict(payload)
+        event_a = self._clean_string(data.get("event_a"))
+        role_a = self._clean_string(data.get("role_a"))
+        event_b = self._clean_string(data.get("event_b"))
+        role_b = self._clean_string(data.get("role_b"))
+        if not all([event_a, role_a, event_b, role_b]):
+            raise ValueError("event_a, role_a, event_b e role_b sao obrigatorios.")
+        self.container.mutate(
+            self.container.service.swap_assignments,
+            event_a,
+            role_a,
+            event_b,
+            role_b,
+        )
+        return {"detail": "Atribuicoes trocadas."}
+
+    def _get_config(self) -> Dict[str, Any]:
+        return self._dump_config(self.container.config)
+
+    def _update_config(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        data = self._ensure_dict(payload)
+        required = {"general", "fairness", "weights", "packs"}
+        missing = [key for key in required if key not in data]
+        if missing:
+            raise ValueError(f"Campos obrigatorios ausentes na configuracao: {', '.join(sorted(missing))}.")
+        general_cfg = GeneralConfig(**self._ensure_dict(data["general"]))
+        fairness_cfg = FairnessConfig(**self._ensure_dict(data["fairness"]))
+        weights_cfg = WeightConfig(**self._ensure_dict(data["weights"]))
+        packs_raw = data["packs"]
+        if not isinstance(packs_raw, dict):
+            raise ValueError("packs deve ser um objeto com chaves numericas.")
+        packs: Dict[int, List[str]] = {}
+        for key, members in packs_raw.items():
+            key_int = int(key)
+            members_list = self._coerce_str_list(members) or []
+            packs[key_int] = [item.upper() for item in members_list]
+        config_cls = self.container.config.__class__
+        cfg = config_cls(
+            general=general_cfg,
+            fairness=fairness_cfg,
+            weights=weights_cfg,
+            packs={key: list(values) for key, values in packs.items()},
+        )
+        cfg.validate()
+        self.container.set_config(cfg, persist=True)
+        return self._dump_config(cfg)
+
+    def _reload_config(self) -> Dict[str, Any]:
+        cfg = self.container.reload_config()
+        return self._dump_config(cfg)
+
+    def _save_state(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        data = self._ensure_dict(payload)
+        path_value = self._clean_string(data.get("path"))
+        target = self.container.save_state(path_value)
+        return {"path": str(target)}
+
+    def _load_state(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        data = self._ensure_dict(payload)
+        path_value = self._clean_string(data.get("path"))
+        if not path_value:
+            raise ValueError("path is required to load state.")
+        target = self.container.load_state(path_value)
+        return {"path": str(target)}
+
+    def _undo_last(self) -> Dict[str, Any]:
+        label = self.container.undo()
+        if not label:
+            raise ValueError("Nada para desfazer.")
+        message = self.container.localizer.text("undo.applied", label=label)
+        return {"message": message}
 
     def _resolve_endpoint(self, endpoint: Any, stored: Dict[str, Any]) -> str:
         if endpoint is None:

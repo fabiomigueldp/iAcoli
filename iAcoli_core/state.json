@@ -99,6 +99,16 @@
       "kind": "REG",
       "pool": [],
       "metadata": {}
+    },
+    {
+      "id": "f0abfe77-d3bc-49ae-b13f-89b6aa3e2507",
+      "community": "MAT",
+      "dtstart": "2025-09-29T17:00:00-03:00",
+      "dtend": null,
+      "quantity": 2,
+      "kind": "REG",
+      "pool": [],
+      "metadata": {}
     }
   ],
   "series": [],

@@ -16,7 +16,10 @@ def test_prompt_builder():
         print("❌ Arquivo não encontrado")
         return False
     
-    content = pb_file.read_text(encoding="utf-8")
+    try:
+        content = pb_file.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        content = pb_file.read_text(encoding="latin-1")
     
     # Verifica melhorias implementadas
     checks = [

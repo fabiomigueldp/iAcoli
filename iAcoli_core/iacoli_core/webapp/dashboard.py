@@ -1,4 +1,4 @@
-# iacoli_core/webapp/dashboard.py
+﻿# iacoli_core/webapp/dashboard.py
 """Rotas da dashboard web do iAcoli Core."""
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 def get_templates(request: Request) -> Jinja2Templates:
-    """Obtém instância de templates do app state."""
+    """ObtÃ©m instÃ¢ncia de templates do app state."""
     return request.app.state.templates
 
 
@@ -26,8 +26,8 @@ async def dashboard_home(
     templates: Jinja2Templates = Depends(get_templates),
     container: ServiceContainer = Depends(get_container)
 ) -> Any:
-    """Página principal da dashboard."""
-    # Dados básicos para a dashboard
+    """PÃ¡gina principal da dashboard."""
+    # Dados bÃ¡sicos para a dashboard
     people = container.read(container.service.list_people)
     events = container.read(container.service.list_events)
     
@@ -48,7 +48,7 @@ async def dashboard_people(
     templates: Jinja2Templates = Depends(get_templates),
     container: ServiceContainer = Depends(get_container)
 ) -> Any:
-    """Página de gerenciamento de pessoas."""
+    """PÃ¡gina de gerenciamento de pessoas."""
     people = container.read(container.service.list_people)
     
     context = {
@@ -66,7 +66,7 @@ async def dashboard_events(
     templates: Jinja2Templates = Depends(get_templates),
     container: ServiceContainer = Depends(get_container)
 ) -> Any:
-    """Página de gerenciamento de eventos."""
+    """PÃ¡gina de gerenciamento de eventos."""
     events = container.read(container.service.list_events)
     
     context = {
@@ -84,8 +84,8 @@ async def dashboard_schedule(
     templates: Jinja2Templates = Depends(get_templates),
     container: ServiceContainer = Depends(get_container)
 ) -> Any:
-    """Página de visualização de escala."""
-    # Chamar list_schedule com parâmetros padrão (todos None = mostrar tudo)
+    """PÃ¡gina de visualizaÃ§Ã£o de escala."""
+    # Chamar list_schedule com parÃ¢metros padrÃ£o (todos None = mostrar tudo)
     schedule = container.read(lambda: container.service.list_schedule(
         periodo=None,
         de=None,
@@ -109,13 +109,28 @@ async def dashboard_config(
     templates: Jinja2Templates = Depends(get_templates),
     container: ServiceContainer = Depends(get_container)
 ) -> Any:
-    """Página de configurações."""
+    """PÃ¡gina de configuraÃ§Ãµes."""
     config = container.config
     
     context = {
         "request": request,
-        "title": "Configurações",
+        "title": "ConfiguraÃ§Ãµes",
         "config": config,
     }
     
     return templates.TemplateResponse("dashboard/config.html", context)
+
+
+@router.get("/agent", response_class=HTMLResponse)
+async def dashboard_agent(
+    request: Request,
+    templates: Jinja2Templates = Depends(get_templates),
+    container: ServiceContainer = Depends(get_container)
+) -> Any:
+    """Tela do agente conversacional."""
+    _ = container  # garante inicializacao do servico compartilhado
+    context = {
+        "request": request,
+        "title": "Agente Conversacional",
+    }
+    return templates.TemplateResponse("dashboard/agent.html", context)

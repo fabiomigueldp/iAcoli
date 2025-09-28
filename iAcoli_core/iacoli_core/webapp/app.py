@@ -1,8 +1,23 @@
 # iacoli_core/webapp/app.py
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from fastapi import FastAPI
+
+# Carrega as variáveis de ambiente do arquivo .env
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # Se python-dotenv não estiver instalado, tenta carregar manualmente
+    env_path = Path(__file__).parent.parent.parent / ".env"
+    if env_path.exists():
+        with open(env_path, 'r') as f:
+            for line in f:
+                if '=' in line and not line.strip().startswith('#'):
+                    key, value = line.strip().split('=', 1)
+                    os.environ[key] = value
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles

@@ -1,8 +1,9 @@
 ﻿from fastapi import APIRouter
 
-from . import config, events, people, schedule, series, system
+from . import agent, config, events, people, schedule, series, system
 
 router = APIRouter()
+router.include_router(agent.router, prefix="/agent", tags=["agent"])
 router.include_router(people.router, prefix="/people", tags=["people"])
 router.include_router(events.router, prefix="/events", tags=["events"])
 router.include_router(series.router, prefix="/series", tags=["series"])

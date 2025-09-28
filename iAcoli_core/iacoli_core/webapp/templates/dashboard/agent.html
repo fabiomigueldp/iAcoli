@@ -1,0 +1,102 @@
+﻿{% extends "base.html" %}
+
+{% block title %}{{ title or "Agente Conversacional" }}{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css">
+    <style>
+        .chat-history {
+            height: 60vh;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+        .chat-message {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1rem;
+        }
+        .chat-message.user {
+            align-items: flex-end;
+        }
+        .chat-message.agent {
+            align-items: flex-start;
+        }
+        .message-bubble {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 0.85rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        .chat-message.user .message-bubble {
+            background-color: #0d6efd;
+            color: #ffffff;
+            border-bottom-right-radius: 0.2rem;
+        }
+        .chat-message.agent .message-bubble {
+            background-color: #ffffff;
+            color: #212529;
+            border-bottom-left-radius: 0.2rem;
+        }
+        .typing-indicator {
+            display: none;
+            color: #6c757d;
+            font-style: italic;
+        }
+        #agent-calendar .fc {
+            min-height: 60vh;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header d-flex align-items-center">
+                <i class="fas fa-robot me-2"></i>
+                <h5 class="mb-0">Agente Conversacional</h5>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <div id="agent-history" class="chat-history mb-3"></div>
+                <div id="agent-typing" class="typing-indicator">
+                    <i class="fas fa-robot me-2"></i>Agente digitando...
+                </div>
+                <form id="agent-form" class="mt-3">
+                    <label for="agent-input" class="form-label">Envie um comando em linguagem natural:</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-keyboard"></i></span>
+                        <input type="text" id="agent-input" class="form-control" placeholder="Ex: Crie uma missa solene amanha as 19h na Matriz" autocomplete="off">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-paper-plane me-1"></i>Enviar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <div>
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    <span>Calendario Atualizado</span>
+                </div>
+                <button id="agent-refresh-calendar" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-sync-alt me-1"></i>Atualizar
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="agent-calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/locales/pt-br.js"></script>
+    <script src="{{ url_for('static', path='/js/agent.js') }}"></script>
+{% endblock %}

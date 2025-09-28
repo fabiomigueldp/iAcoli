@@ -23,6 +23,60 @@
       "morning": false,
       "active": true,
       "locale": null
+    },
+    {
+      "id": "c0679062-5129-4dea-9427-a92b8cb7cffe",
+      "name": "Pedro Miguel",
+      "community": "default",
+      "roles": [
+        "CAM",
+        "CER1",
+        "CER2",
+        "CRU",
+        "LIB",
+        "MIC",
+        "NAV",
+        "TUR"
+      ],
+      "morning": false,
+      "active": true,
+      "locale": "pt-BR"
+    },
+    {
+      "id": "07bfe7bc-5edb-4eec-ae7d-31c61c96c1fd",
+      "name": "Emanuelly",
+      "community": "NSL",
+      "roles": [
+        "CAM",
+        "CER1",
+        "CER2",
+        "CRU",
+        "LIB",
+        "MIC",
+        "NAV",
+        "TUR"
+      ],
+      "morning": false,
+      "active": true,
+      "locale": null
+    },
+    {
+      "id": "12953198-ceed-4445-b2c7-c88bbd19874f",
+      "name": "Maria Clara",
+      "community": "SJB",
+      "roles": [
+        "CAM",
+        "CER1",
+        "CER2",
+        "CRU",
+        "LIB",
+        "MIC",
+        "NAV",
+        "TUR"
+      ],
+      "morning": false,
+      "active": true,
+      "locale": null
     }
   ],
   "events": [
@@ -33,6 +87,16 @@
       "dtend": null,
       "quantity": 2,
       "kind": "SOLENE",
+      "pool": [],
+      "metadata": {}
+    },
+    {
+      "id": "ae2f9d68-c68f-42df-9a4c-893a95b7f13f",
+      "community": "MAT",
+      "dtstart": "2025-10-10T19:30:00-03:00",
+      "dtend": null,
+      "quantity": 4,
+      "kind": "REG",
       "pool": [],
       "metadata": {}
     }

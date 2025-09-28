@@ -1,7 +1,7 @@
 ﻿from __future__ import annotations
 
 from datetime import date, datetime, time
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -298,3 +298,20 @@ class StateLoadRequest(BaseModel):
     path: str
 
 
+
+class AgentInteractRequest(BaseModel):
+    prompt: str = Field(..., min_length=1)
+
+
+class AgentCallResult(BaseModel):
+    name: Optional[str] = None
+    endpoint: str
+    status: str
+    payload: Dict[str, Any] | None = None
+    result: Any | None = None
+    error: Optional[str] = None
+
+
+class AgentInteractResponse(BaseModel):
+    response_text: str
+    executed_actions: List[AgentCallResult] = Field(default_factory=list)

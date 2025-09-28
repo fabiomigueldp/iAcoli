@@ -2,6 +2,10 @@
 """Script para executar o servidor web do iAcoli Core."""
 
 import uvicorn
+from dotenv import load_dotenv
+
+# Carrega automaticamente as variáveis do arquivo .env
+load_dotenv()
 
 
 def main() -> None:

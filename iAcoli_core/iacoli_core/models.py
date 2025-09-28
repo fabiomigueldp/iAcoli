@@ -35,6 +35,23 @@ ROLE_ALIASES: Dict[str, str] = {
     "NAVETEIRO": "NAV",
     "TURIFERARIO": "TUR",
     "CAMPANARIO": "CAM",
+    "ACOLITO": "LIB",
+    "ACOLITOS": "LIB",
+    "ACOLITE": "LIB",
+    "ACOLYTE": "LIB",
+    "ACOLYTES": "LIB",
+    "ACOLITO 1": "CER1",
+    "ACOLITO 2": "CER2",
+    "ACOLITO1": "CER1",
+    "ACOLITO2": "CER2",
+    "ACOLYTE 1": "CER1",
+    "ACOLYTE 2": "CER2",
+    "ACOLYTE1": "CER1",
+    "ACOLYTE2": "CER2",
+    "ALTAR SERVER": "LIB",
+    "ALTAR SERVERS": "LIB",
+    "ALTAR BOY": "LIB",
+    "ALTAR BOYS": "LIB",
 }
 
 COMMUNITY_ALIASES: Dict[str, str] = {
@@ -53,6 +70,8 @@ COMMUNITIES: Dict[str, str] = {
 
 def normalize_role(value: str) -> str:
     token = strip_diacritics(value.strip().upper())
+    token = token.replace('-', ' ').replace('_', ' ')
+    token = ' '.join(token.split())
     token = ROLE_ALIASES.get(token, token)
     if token not in ROLE_CODES:
         raise ValueError(f"Funcao desconhecida: {value}")
@@ -342,3 +361,4 @@ DEFAULT_PACKS: Dict[int, list[str]] = {
     7: ["LIB", "CRU", "MIC", "TUR", "NAV", "CER1", "CER2"],
     8: ["LIB", "CRU", "MIC", "TUR", "NAV", "CER1", "CER2", "CAM"],
 }
+

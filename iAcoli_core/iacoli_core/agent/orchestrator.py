@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import logging
@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from urllib.parse import parse_qsl, urlsplit
-from typing import Any, Callable, Dict, List, Sequence
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 from uuid import UUID
 
 try:
@@ -19,11 +19,51 @@ from ..config import FairnessConfig, GeneralConfig, WeightConfig
 from ..errors import ValidationError
 from ..utils import strip_diacritics
 from ..webapp.container import ServiceContainer
-from .prompt_builder import build_system_prompt
+from .prompt_builder import build_system_prompt, load_all_tool_docs
 
 PLACEHOLDER_PATTERN = re.compile(r"\{\{([^{}]+)\}\}")
 PATH_PARAM_PATTERN = re.compile(r"{([^{}]+)}")
 
+
+AGENT_RESPONSE_FORMAT: Dict[str, Any] = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "agent_step",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "thought": {"type": "string"},
+                "action": {
+                    "type": ["object", "null"],
+                    "properties": {
+                        "name": {"type": ["string", "null"]},
+                        "endpoint": {
+                        "type": "string",
+                        "pattern": "^[A-Z]+\\s+/.*$",
+                        "description": "Sempre use o formato METHOD /caminho com os endpoints documentados."
+                    },
+                        "payload": {"type": ["object", "null"]},
+                        "store_result_as": {"type": ["string", "null"]}
+                    },
+                    "required": ["endpoint"],
+                    "additionalProperties": False
+                },
+                "final_answer": {"type": ["string", "null"]},
+                "response_text": {"type": ["string", "null"]}
+            },
+            "required": ["thought"],
+            "additionalProperties": False
+        }
+    }
+}
+
+
+
+def _to_json(data: Any) -> str:
+    try:
+        return json.dumps(data, ensure_ascii=False)
+    except TypeError:
+        return str(data)
 
 @dataclass(slots=True)
 class EndpointHandler:
@@ -69,6 +109,11 @@ class AgentOrchestrator:
     def __init__(self, container: ServiceContainer) -> None:
         self.container = container
         self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)  # Força nivel DEBUG para transparencia total
+        self.max_iterations = 8
+        self.logger.info("=== ORCHESTRATOR INICIALIZADO ===")
+        self.logger.info("Container: %s", container)
+        self.logger.info("Max iterations: %s", self.max_iterations)
         # Map endpoints to orchestrator handlers
         self._handlers: list[EndpointHandler] = []
         self._register_endpoint("POST", "/api/events", self._create_event)
@@ -134,212 +179,434 @@ class AgentOrchestrator:
     ) -> None:
         self._handlers.append(EndpointHandler(method, template, handler, expect_payload, expect_query))
 
+
+
     def interact(self, user_prompt: str) -> Dict[str, Any]:
-        system_prompt = build_system_prompt(user_prompt)
-        raw_output = self._call_llm(system_prompt, user_prompt)
-        if raw_output is None:
-            return {
-                "response_text": "Desculpe, nao consegui processar seu pedido agora.",
-                "executed_actions": [],
+        dynamic_context = self._build_dynamic_context_snapshot()
+        tool_docs = load_all_tool_docs()
+        system_prompt = build_system_prompt(
+            user_prompt,
+            dynamic_context=dynamic_context,
+            tool_docs=tool_docs,
+        )
+
+        stored_results: Dict[str, Any] = {}
+        scratchpad: list[dict[str, str]] = []
+        executed_actions: List[Dict[str, Any]] = []
+        final_answer: str | None = None
+
+        self.logger.info("=== NOVA INTERACAO INICIADA ===")
+        self.logger.info("[Agent] User prompt: %s", user_prompt)
+        self.logger.info("[Agent] Resumo dinamico: %s", dynamic_context.replace('\n', ' | '))
+        self.logger.info("[Agent] System prompt length: %d chars", len(system_prompt))
+        self.logger.debug("[Agent] System prompt content: %s", system_prompt[:500] + "..." if len(system_prompt) > 500 else system_prompt)
+
+        for step in range(1, self.max_iterations + 1):
+            self.logger.info("=== ITERACAO %d/%d INICIADA ===", step, self.max_iterations)
+            iteration_prompt = self._render_iteration_prompt(user_prompt, scratchpad, step)
+            self.logger.debug("[Agent] Iteration prompt: %s", iteration_prompt)
+            
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": iteration_prompt},
+            ]
+            self.logger.info("[Agent] Enviando request para LLM com %d mensagens", len(messages))
+            self.logger.debug("[Agent] Messages sendo enviadas: %s", _to_json(messages))
+            
+            parsed, llm_error = self._call_llm(messages)
+            if parsed is None:
+                observation = llm_error or "Saida do modelo invalida (sem detalhes)."
+                self.logger.warning("[Agent] Iteracao %s recebeu saida invalida do LLM: %s", step, observation)
+                scratchpad.append({
+                    "thought": "(saida invalida do modelo)",
+                    "action": "Nenhuma acao executada",
+                    "observation": observation,
+                })
+                continue
+
+            self.logger.info("[Agent] Iteracao %s resultado LLM: %s", step, _to_json(parsed))
+            thought = str(parsed.get("thought") or "").strip()
+            final_candidate = parsed.get("final_answer") or parsed.get("response_text")
+            action_payload = parsed.get("action")
+            observation: str | None = None
+            entry: Dict[str, Any] | None = None
+
+            if isinstance(action_payload, dict) and action_payload:
+                entry, observation = self._execute_react_action(action_payload, stored_results)
+                executed_actions.append(entry)
+            elif action_payload in (None, {}):
+                action_payload = None
+            else:
+                observation = f"Aviso: formato de action inesperado ({type(action_payload).__name__})."
+                action_payload = None
+
+            history_entry = {
+                "thought": thought or "(sem pensamento registrado)",
+                "action": self._summarize_action(action_payload, entry),
+                "observation": observation or "Sem observacoes adicionais.",
             }
+            scratchpad.append(history_entry)
+            self.logger.info("[Agent] Iteracao %s scratchpad atualizado: %s", step, _to_json(history_entry))
 
-        parsed = self._parse_llm_output(raw_output)
-        if parsed is None:
-            return {
-                "response_text": "Desculpe, recebi um retorno invalido do agente.",
-                "executed_actions": [],
-            }
+            if isinstance(final_candidate, str) and final_candidate.strip():
+                final_answer = final_candidate.strip()
+                if action_payload is None:
+                    break
 
-        api_calls = parsed.get("api_calls")
-        if not isinstance(api_calls, list):
-            api_calls = []
+        if final_answer is None:
+            error_entry = next((item for item in reversed(executed_actions) if item.get("status") in {"validation_error", "error"}), None)
+            if error_entry:
+                final_answer = f"Desculpe, ocorreu um erro ao executar as acoes: {error_entry.get('error', 'sem detalhes')}"
+            elif executed_actions:
+                final_answer = "Tudo certo, acoes executadas."
+            elif scratchpad:
+                final_answer = "Desculpe, tive dificuldades para gerar uma resposta valida. Vamos tentar novamente."
+            else:
+                final_answer = "Desculpe, nao consegui processar seu pedido agora."
 
-        executed_actions = self._execute_calls(api_calls)
-        response_text = parsed.get("response_text") or "Tudo certo, acao concluida."
-
-        if executed_actions and executed_actions[-1].get("status") not in {"success", "noop"}:
-            response_text = "Desculpe, ocorreu um erro ao executar as acoes planejadas."
-
-        return {
-            "response_text": response_text,
+        self.logger.info("=== INTERACAO CONCLUIDA ===")
+        self.logger.info("[Agent] Total de iterações: %d", step)
+        self.logger.info("[Agent] Resposta final: %s", final_answer)
+        self.logger.info("[Agent] Total de ações executadas: %d", len(executed_actions))
+        self.logger.info("[Agent] Ações executadas: %s", _to_json(executed_actions))
+        
+        result = {
+            "response_text": final_answer,
             "executed_actions": executed_actions,
         }
+        self.logger.debug("[Agent] Resultado completo: %s", _to_json(result))
+        
+        return result
 
-    def _call_llm(self, system_prompt: str, user_prompt: str) -> str | None:
+    def _call_llm(self, messages: List[Dict[str, str]]) -> Tuple[Dict[str, Any] | None, str | None]:
+        self.logger.info("[LLM] Iniciando chamada para LLM")
+        
         if OpenAI is None:
-            self.logger.error("openai package not installed. Cannot reach Perplexity Sonar.")
-            return None
+            error = "openai package not installed. Cannot reach Perplexity Sonar."
+            self.logger.error("[LLM] %s", error)
+            return None, error
 
         api_key = os.environ.get("PPLX_API_KEY")
         if not api_key:
-            self.logger.error("Missing PPLX_API_KEY environment variable.")
-            return None
+            error = "Missing PPLX_API_KEY environment variable."
+            self.logger.error("[LLM] %s", error)
+            return None, error
 
+        self.logger.info("[LLM] API key found, configurando cliente Perplexity")
         client = OpenAI(api_key=api_key, base_url="https://api.perplexity.ai")
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
-
+        
         try:
+            self.logger.info("[LLM] Enviando request para Perplexity Sonar com modelo 'sonar'")
+            self.logger.debug("[LLM] Response format: %s", AGENT_RESPONSE_FORMAT)
+            
             response = client.chat.completions.create(
                 model="sonar",
                 messages=messages,
-                # PARÂMETRO CRÍTICO PARA DESATIVAR PESQUISA WEB:
-                extra_body={"disable_search": True}
+                response_format=AGENT_RESPONSE_FORMAT,
+                extra_body={"disable_search": True},
             )
+            
+            self.logger.info("[LLM] Response recebido com sucesso")
+            self.logger.debug("[LLM] Raw response: %s", response)
+            
         except Exception as exc:  # pragma: no cover - network call
-            self.logger.exception("Failed to call Perplexity Sonar: %s", exc)
-            return None
+            error = f"Failed to call Perplexity Sonar: {exc}"
+            self.logger.exception("[LLM] %s", error)
+            return None, error
 
         if not response.choices:
-            self.logger.error("LLM response has no choices.")
-            return None
+            error = "LLM response has no choices."
+            self.logger.error("[LLM] %s", error)
+            return None, error
 
         message = response.choices[0].message
-        if message is None:
-            self.logger.error("LLM response message is empty.")
-            return None
+        if message is None or not message.content:
+            error = "LLM response message is empty."
+            self.logger.error("[LLM] %s", error)
+            return None, error
 
-        return message.content or None
+        self.logger.info("[LLM] Processando resposta do LLM")
+        self.logger.debug("[LLM] Raw message content: %s", message.content)
 
-    def _parse_llm_output(self, raw_output: str) -> Dict[str, Any] | None:
-        if not raw_output:
-            self.logger.error("LLM output is empty")
-            return None
-            
-        # Limpa a saída removendo possíveis formatações markdown
-        cleaned_output = raw_output.strip()
-        
-        # Remove blocos de código markdown se existirem
-        if cleaned_output.startswith("```json"):
-            cleaned_output = cleaned_output[7:]
-        if cleaned_output.startswith("```"):
-            cleaned_output = cleaned_output[3:]
-        if cleaned_output.endswith("```"):
-            cleaned_output = cleaned_output[:-3]
-            
-        # Corrige chaves duplas nas extremidades que o modelo pode ter usado por conta do exemplo no prompt
-        if cleaned_output.startswith("{{"):
-            cleaned_output = cleaned_output[1:]
-        if cleaned_output.endswith("}}"):
-            cleaned_output = cleaned_output[:-1]
-
-        cleaned_output = cleaned_output.strip()
-        
-        # Log da saída para debug
-        self.logger.info(f"Raw LLM output: {repr(raw_output[:200])}...")
-        self.logger.info(f"Cleaned LLM output: {repr(cleaned_output[:200])}...")
-        
-        decoder = json.JSONDecoder()
         try:
-            data = json.loads(cleaned_output)
-        except json.JSONDecodeError as exc:
-            self.logger.error("LLM output is not valid JSON after cleaning: %s", exc)
-            self.logger.error("Problematic output: %r", cleaned_output[:500])
+            # Tenta primeiro parsing direto (caso ideal)
+            self.logger.debug("[LLM] Tentando parsing direto do JSON")
+            parsed = json.loads(message.content)
+            self.logger.info("[LLM] JSON parseado com sucesso (parsing direto)")
+            return parsed, None
+        except json.JSONDecodeError:
+            self.logger.warning("[LLM] Parsing direto falhou, tentando extrair JSON com regex")
+            # Se falhar, tenta extrair JSON da resposta usando regex
             try:
-                data, end = decoder.raw_decode(cleaned_output)
-                trailing = cleaned_output[end:].strip()
-                if trailing:
-                    self.logger.info("Ignorando texto extra apos JSON: %r", trailing[:80])
-            except json.JSONDecodeError:
-                corrected_output = self._try_fix_json(cleaned_output)
-                if not corrected_output:
-                    return None
-                try:
-                    data = json.loads(corrected_output)
-                    if corrected_output != cleaned_output:
-                        self.logger.info("JSON corrigido automaticamente")
-                except json.JSONDecodeError as inner_exc:
-                    self.logger.error("Nao foi possivel corrigir o JSON automaticamente: %s", inner_exc)
-                    return None
+                # Procura pelo primeiro bloco JSON válido na resposta
+                json_match = re.search(r'\{.*\}', message.content, re.DOTALL)
+                if not json_match:
+                    raise json.JSONDecodeError("Nenhum bloco JSON encontrado na resposta.", message.content, 0)
+                
+                json_string = json_match.group(0)
+                self.logger.debug("[LLM] JSON extraído por regex: %s", json_string[:200] + "..." if len(json_string) > 200 else json_string)
+                parsed_json = json.loads(json_string)
+                
+                self.logger.info("[LLM] JSON extraído com sucesso da resposta que continha texto extra")
+                
+                return parsed_json, None
+            except json.JSONDecodeError as exc:
+                truncated = message.content[:500]
+                error = f"LLM response is not valid or parsable JSON: {exc}. Raw: {truncated!r}"
+                self.logger.error("[LLM] %s", error)
+                return None, error
 
-        if not isinstance(data, dict):
-            self.logger.error("LLM output is not a JSON object: %r", data)
-            return None
+    def _build_dynamic_context_snapshot(self) -> str:
+        def gather() -> Dict[str, Any]:
+            service = self.container.service
+            people = service.list_people()
+            events = sorted(service.list_events(), key=lambda item: item.dtstart)
+            assignments_total = sum(len(mapping) for mapping in service.state.assignments.values())
+            series_total = len(service.state.series)
 
-        return data
+            people_snapshot = [
+                {
+                    "id": str(person.id),
+                    "name": person.name,
+                    "community": person.community,
+                    "roles": sorted(person.roles),
+                    "active": person.active,
+                }
+                for person in people
+            ]
 
-    def _try_fix_json(self, json_str: str) -> str | None:
-        """Tenta extrair ou completar o primeiro objeto JSON bem formado devolvido pelo modelo."""
-        text = (json_str or "").strip()
-        if not text:
-            return None
+            event_snapshot: List[Dict[str, Any]] = []
+            for event in events:
+                key_getter = getattr(event, "key", None)
+                event_key = None
+                if callable(key_getter):
+                    try:
+                        event_key = key_getter()
+                    except Exception:  # pragma: no cover - best effort only
+                        event_key = None
+                event_snapshot.append(
+                    {
+                        "id": str(event.id),
+                        "key": event_key,
+                        "community": event.community,
+                        "dtstart": event.dtstart.isoformat(),
+                        "kind": event.kind,
+                    }
+                )
 
-        start = text.find("{")
-        if start == -1:
-            return None
+            return {
+                "people": people_snapshot,
+                "events": event_snapshot,
+                "assignments_total": assignments_total,
+                "series_total": series_total,
+            }
 
-        candidate = text[start:]
-        stack: list[str] = []
-        in_string = False
-        escape = False
-        end_index: int | None = None
+        snapshot = self.container.read(gather)
+        people_snapshot: List[Dict[str, Any]] = snapshot.get("people", [])  # type: ignore[assignment]
+        events_snapshot: List[Dict[str, Any]] = snapshot.get("events", [])  # type: ignore[assignment]
+        lines: List[str] = [
+            "Resumo dinamico do estado atual:",
+            f"- Pessoas registradas: {len(people_snapshot)}",
+            f"- Eventos agendados: {len(events_snapshot)}",
+            f"- Series ativas: {snapshot.get('series_total', 0)}",
+            f"- Atribuicoes registradas: {snapshot.get('assignments_total', 0)}",
+        ]
 
-        for index, char in enumerate(candidate):
-            if in_string:
-                if escape:
-                    escape = False
-                elif char == "\\":
-                    escape = True
-                elif char == '"':
-                    in_string = False
-                continue
+        if people_snapshot:
+            limit_people = 8
+            lines.append(f"- Pessoas detalhadas (ate {limit_people}):")
+            for person in people_snapshot[:limit_people]:
+                roles = ", ".join(person.get("roles", [])) or "sem funcoes"
+                status = "ativo" if person.get("active") else "inativo"
+                lines.append(
+                    f"  - {person.get('name', 'desconhecido')} (id={person.get('id')}, comunidade={person.get('community')}, roles=[{roles}], {status})"
+                )
+            remaining = len(people_snapshot) - limit_people
+            if remaining > 0:
+                lines.append(f"  - ... {remaining} pessoas adicionais")
+        else:
+            lines.append("- Nenhuma pessoa cadastrada.")
 
-            if char == '"':
-                in_string = True
-                continue
+        if events_snapshot:
+            limit_events = 5
+            lines.append(f"- Proximos eventos (ate {limit_events}):")
+            for event in events_snapshot[:limit_events]:
+                label = f"{event.get('dtstart')} | {event.get('community')} | {event.get('kind')}"
+                if event.get("key"):
+                    label += f" | key={event.get('key')}"
+                label += f" | id={event.get('id')}"
+                lines.append(f"  - {label}")
+            remaining_events = len(events_snapshot) - limit_events
+            if remaining_events > 0:
+                lines.append(f"  - ... {remaining_events} eventos adicionais")
+        else:
+            lines.append("- Nenhum evento agendado.")
 
-            if char == '{':
-                stack.append('}')
-                continue
+        return "\n".join(lines)
 
-            if char == '[':
-                stack.append(']')
-                continue
+    def _render_iteration_prompt(self, user_prompt: str, scratchpad: List[dict[str, str]], step: int) -> str:
+        lines: List[str] = [
+            "**Objetivo do usuario:**",
+            (user_prompt or "(vazio)").strip(),
+            "",
+            f"**Iteracao atual:** {step}/{self.max_iterations}",
+            "",
+            "**Historico do agente:**",
+        ]
 
-            if char in (']', '}'):
-                if not stack:
-                    end_index = index
-                    break
-                while stack:
-                    expected = stack[-1]
-                    if expected == char:
-                        stack.pop()
-                        break
-                    stack.pop()
-                else:
-                    end_index = index
-                    break
-                if not stack:
-                    end_index = index + 1
-                    break
-                continue
+        if not scratchpad:
+            lines.append("Nenhuma acao executada ate o momento.")
+        else:
+            for idx, entry in enumerate(scratchpad, 1):
+                lines.append(f"Passo {idx}:")
+                thought = entry.get("thought")
+                if thought:
+                    lines.append(f"- Thought: {thought}")
+                action = entry.get("action")
+                if action:
+                    lines.append(f"- Action: {action}")
+                observation = entry.get("observation")
+                if observation:
+                    lines.append(f"- Observation: {observation}")
+                lines.append("")
+            if lines and lines[-1] == "":
+                lines.pop()
 
-            if not stack and index != 0:
-                end_index = index
-                break
+        lines.append("")
+        lines.append("Responda com o JSON solicitado no system prompt seguindo o ciclo pensar -> agir -> observar.")
+        lines.append("Use apenas endpoints documentados, por exemplo `GET /api/people` para listar acolit@s.")
+        return "\n".join(lines).strip()
 
-        if end_index is None:
-            if not stack:
-                end_index = len(candidate)
-            else:
-                missing_closers = ''.join(reversed(stack))
-                self.logger.info("Complementando JSON com fechamentos: %s", missing_closers)
-                return (candidate + missing_closers).strip()
+    def _execute_react_action(self, action: Dict[str, Any], stored_results: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
+        self.logger.info("=== EXECUTANDO ACTION ===")
+        self.logger.info("[Action] Detalhes da action: %s", _to_json(action))
+        self.logger.info("[Action] Stored results disponíveis: %s", list(stored_results.keys()))
+        
+        entry: Dict[str, Any] = {
+            "name": action.get("name"),
+            "endpoint": action.get("endpoint"),
+            "status": "noop",
+        }
+        store_key = action.get("store_result_as") or action.get("name")
+        if store_key:
+            entry["store_result_as"] = store_key
+            self.logger.info("[Action] Resultado será armazenado como: %s", store_key)
 
-        result = candidate[:end_index].strip()
-        trailing = candidate[end_index:].strip()
-        if trailing:
-            self.logger.info("Ignorando texto extra apos JSON: %r", trailing[:80])
+        endpoint_raw = action.get("endpoint")
+        if not isinstance(endpoint_raw, str) or not endpoint_raw.strip():
+            entry.update({"status": "error", "error": "Endpoint ausente na action."})
+            self.logger.error("[Action] Action sem endpoint válido: %s", _to_json(action))
+            return entry, self._format_observation(entry)
 
-        if stack:
-            missing_closers = ''.join(reversed(stack))
-            self.logger.info("Complementando JSON com fechamentos: %s", missing_closers)
-            result += missing_closers
+        try:
+            resolved_endpoint = self._resolve_endpoint(endpoint_raw, stored_results)
+        except Exception as exc:
+            entry.update({"status": "error", "error": str(exc)})
+            self.logger.error("[Agent] Falha ao resolver endpoint %s: %s", endpoint_raw, exc)
+            return entry, self._format_observation(entry)
 
-        return result or None
+        entry["endpoint"] = resolved_endpoint
+        self.logger.info("[Action] Endpoint resolvido: %s", resolved_endpoint)
+        self.logger.info("[Action] Executando action=%s endpoint=%s", entry.get("name"), resolved_endpoint)
+        self.logger.debug("[Action] Payload original: %s", _to_json(action.get("payload")))
 
+        try:
+            cleaned_payload = self._ensure_dict(action.get("payload"))
+            self.logger.debug("[Action] Payload limpo: %s", _to_json(cleaned_payload))
+            resolved_payload = self._resolve_placeholders(cleaned_payload, stored_results)
+            self.logger.info("[Action] Payload com placeholders resolvidos: %s", _to_json(resolved_payload))
+        except Exception as exc:
+            entry.update({"status": "error", "error": f"Erro ao preparar payload: {exc}"})
+            self.logger.error("[Action] Falha ao preparar payload para %s: %s", resolved_endpoint, exc)
+            return entry, self._format_observation(entry)
+
+        try:
+            self.logger.info("[Action] Iniciando dispatch para: %s", resolved_endpoint)
+            result = self._dispatch(resolved_endpoint, resolved_payload)
+            self.logger.info("[Action] Dispatch concluído com sucesso")
+            self.logger.debug("[Action] Resultado bruto: %s", _to_json(result))
+            
+            serializable = self._to_serializable(result)
+            self.logger.debug("[Action] Resultado serializado: %s", _to_json(serializable))
+            
+            if store_key:
+                stored_results[str(store_key)] = serializable
+                self.logger.info("[Action] Resultado armazenado em stored_results['%s']", store_key)
+            
+            entry.update({
+                "status": "success",
+                "payload": resolved_payload,
+                "result": serializable,
+            })
+            self.logger.info("[Action] Action %s concluída com SUCESSO", entry.get("name"))
+            
+        except ValidationError as exc:
+            entry.update({
+                "status": "validation_error",
+                "error": str(exc),
+                "payload": resolved_payload,
+            })
+            self.logger.warning("[Action] ERRO DE VALIDAÇÃO para %s: %s", resolved_endpoint, exc)
+            
+        except Exception as exc:  # pragma: no cover - safety net
+            self.logger.exception("[Action] ERRO GERAL executando %s: %s", resolved_endpoint, exc)
+            entry.update({
+                "status": "error",
+                "error": str(exc),
+                "payload": resolved_payload,
+            })
+
+        return entry, self._format_observation(entry)
+
+    def _summarize_action(self, action: Dict[str, Any] | None, entry: Dict[str, Any] | None) -> str:
+        if entry:
+            endpoint = entry.get("endpoint") or (action.get("endpoint") if action else "<sem endpoint>")
+            status = entry.get("status", "noop")
+            name = entry.get("name") or (action.get("name") if action else None)
+            summary = f"{endpoint} [{status}]" if endpoint else f"[{status}]"
+            if name:
+                summary = f"{name}: {summary}"
+            store_alias = entry.get("store_result_as")
+            if store_alias:
+                summary += f" (store={store_alias})"
+            return summary
+
+        if action:
+            endpoint = action.get("endpoint") or "<sem endpoint>"
+            name = action.get("name")
+            summary = endpoint
+            if name:
+                summary = f"{name}: {summary}"
+            return summary
+
+        return "Nenhuma acao executada nesta iteracao."
+
+    def _format_observation(self, entry: Dict[str, Any]) -> str:
+        observation: Dict[str, Any] = {
+            "status": entry.get("status"),
+            "endpoint": entry.get("endpoint"),
+        }
+        if entry.get("name"):
+            observation["name"] = entry["name"]
+        if entry.get("store_result_as"):
+            observation["stored_as"] = entry["store_result_as"]
+        if entry.get("payload"):
+            observation["payload"] = entry["payload"]
+        if entry.get("status") == "success" and entry.get("result") is not None:
+            observation["result"] = entry["result"]
+        if entry.get("error"):
+            observation["error"] = entry["error"]
+        return self._summarize_json(observation)
+
+    def _summarize_json(self, data: Any, *, max_length: int = 800) -> str:
+        serializable = self._to_serializable(data)
+        try:
+            text = json.dumps(serializable, ensure_ascii=False, sort_keys=True)
+        except TypeError:
+            text = json.dumps(str(serializable), ensure_ascii=False)
+        if len(text) > max_length:
+            return text[: max_length - 3] + "..."
+        return text
     def _execute_calls(self, api_calls: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
         executed: List[Dict[str, Any]] = []
         stored_results: Dict[str, Any] = {}
@@ -391,6 +658,9 @@ class AgentOrchestrator:
         return executed
 
     def _dispatch(self, endpoint: Any, payload: Dict[str, Any]) -> Any:
+        self.logger.info("[Dispatch] Iniciando dispatch para endpoint: %s", endpoint)
+        self.logger.debug("[Dispatch] Payload recebido: %s", _to_json(payload))
+        
         if not isinstance(endpoint, str):
             raise ValueError("Endpoint deve ser uma string no formato 'METHOD /path'.")
 
@@ -399,36 +669,65 @@ class AgentOrchestrator:
             raise ValueError(f"Formato de endpoint invalido: {endpoint}")
 
         method, raw_path = parts[0].upper(), parts[1]
+        self.logger.info("[Dispatch] Method: %s, Path: %s", method, raw_path)
+        
         parsed = urlsplit(raw_path)
         path = parsed.path or ""
         query_params = self._parse_query_string(parsed.query)
+        self.logger.debug("[Dispatch] Parsed path: %s, Query params: %s", path, query_params)
+        
         base_payload = dict(payload) if payload else {}
 
+        self.logger.debug("[Dispatch] Procurando handler para %s %s entre %d handlers", method, path, len(self._handlers))
+        
         for handler in self._handlers:
+            self.logger.debug("[Dispatch] Testando handler: %s %s", handler.method, handler.template)
             if handler.method != method:
+                self.logger.debug("[Dispatch] Method não confere: %s != %s", handler.method, method)
                 continue
             match = handler.match(path)
             if match is None:
+                self.logger.debug("[Dispatch] Path não confere com template %s", handler.template)
                 continue
+            
+            self.logger.info("[Dispatch] Handler encontrado: %s %s", handler.method, handler.template)
+            self.logger.debug("[Dispatch] Path params extraídos: %s", match)
 
             payload_data = dict(base_payload)
             if not handler.expect_query:
                 for key, value in query_params.items():
                     payload_data.setdefault(key, value)
+            
+            self.logger.debug("[Dispatch] Payload final: %s", _to_json(payload_data))
 
             args: list[str] = []
             for name in handler.param_names:
                 value = self._resolve_path_value(name, match, payload_data, query_params, handler.template)
                 args.append(value)
+                self.logger.debug("[Dispatch] Path param %s = %s", name, value)
 
-            if handler.expect_payload and handler.expect_query:
-                return handler.func(*args, payload_data, query_params)
-            if handler.expect_payload:
-                return handler.func(*args, payload_data)
-            if handler.expect_query:
-                return handler.func(*args, query_params)
-            return handler.func(*args)
+            self.logger.info("[Dispatch] Executando handler %s com args=%s", handler.func.__name__, args)
+            self.logger.debug("[Dispatch] Handler expects - payload: %s, query: %s", handler.expect_payload, handler.expect_query)
+            
+            try:
+                if handler.expect_payload and handler.expect_query:
+                    result = handler.func(*args, payload_data, query_params)
+                elif handler.expect_payload:
+                    result = handler.func(*args, payload_data)
+                elif handler.expect_query:
+                    result = handler.func(*args, query_params)
+                else:
+                    result = handler.func(*args)
+                
+                self.logger.info("[Dispatch] Handler %s executado com SUCESSO", handler.func.__name__)
+                self.logger.debug("[Dispatch] Resultado do handler: %s", _to_json(result))
+                return result
+                
+            except Exception as exc:
+                self.logger.exception("[Dispatch] ERRO executando handler %s: %s", handler.func.__name__, exc)
+                raise
 
+        self.logger.error("[Dispatch] Nenhum handler encontrado para: %s", endpoint)
         raise ValueError(f"Endpoint nao suportado: {endpoint}")
 
     def _parse_query_string(self, query: str) -> Dict[str, Any]:
@@ -1382,4 +1681,9 @@ class AgentOrchestrator:
         if isinstance(value, (list, tuple, set)):
             return [self._parse_uuid(item, field="pool item") for item in value]
         raise ValueError("pool must be a list of UUID strings when provided.")
+
+
+
+
+
 

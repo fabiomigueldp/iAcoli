@@ -1,121 +1,117 @@
-#!/usr/bin/env python3
-"""
-Teste simples das melhorias do agente iAcoli.
-"""
+﻿#!/usr/bin/env python3
+"""Teste simples das melhorias do agente iAcoli."""
 
-# Lê os arquivos diretamente para verificar o conteúdo
 from pathlib import Path
 
-def test_prompt_builder():
-    """Verifica se o prompt_builder.py foi atualizado corretamente."""
-    print("🔍 TESTANDO PROMPT_BUILDER.PY")
-    print("=" * 50)
-    
+
+def _print_header(title: str) -> None:
+    print("\n" + title)
+    print("=" * len(title))
+
+
+def test_prompt_builder() -> bool:
+    """Verifica se prompt_builder.py contem as novas instrucoes."""
+    _print_header("TESTANDO PROMPT_BUILDER.PY")
+
     pb_file = Path("iacoli_core/agent/prompt_builder.py")
     if not pb_file.exists():
-        print("❌ Arquivo não encontrado")
+        print("ERRO: arquivo nao encontrado")
         return False
-    
-    try:
-        content = pb_file.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        content = pb_file.read_text(encoding="latin-1")
-    
-    # Verifica melhorias implementadas
-    checks = [
-        ("BASE_PROMPT novo formato", "REGRAS CRÍTICAS E INVIOLÁVEIS" in content),
-        ("Contexto dinâmico", "{system_context}" in content),
-        ("Import ROLE_CODES", "from ..models import ROLE_CODES" in content),
-        ("Função build_system_prompt atualizada", "all_roles_str = " in content),
-        ("Contexto de comunidades", "COMMUNITIES" in content),
-    ]
-    
-    for check_name, result in checks:
-        status = "✅" if result else "❌"
-        print(f"{status} {check_name}")
-    
-    return all(result for _, result in checks)
 
-def test_orchestrator():
-    """Verifica se o orchestrator.py foi atualizado corretamente."""
-    print("\n🔍 TESTANDO ORCHESTRATOR.PY")
-    print("=" * 50)
-    
+    content = pb_file.read_text(encoding="utf-8")
+
+    checks = [
+        ("Instrucao ReAct presente", "CICLO DE RACIOCINIO REACT" in content),
+        ("Uso de store_result_as documentado", '"store_result_as"' in content),
+        ("Funcao load_all_tool_docs definida", "def load_all_tool_docs" in content),
+        ("build_system_prompt espera dynamic_context", "dynamic_context" in content),
+        ("Instrucao de endpoint real", "action.endpoint DEVE usar o formato" in content),
+    ]
+
+    all_ok = True
+    for description, result in checks:
+        status = "OK" if result else "FALHOU"
+        print(f"{status}: {description}")
+        all_ok &= result
+    return all_ok
+
+
+def test_orchestrator() -> bool:
+    """Verifica se orchestrator.py possui o novo ciclo de agente."""
+    _print_header("TESTANDO ORCHESTRATOR.PY")
+
     orch_file = Path("iacoli_core/agent/orchestrator.py")
     if not orch_file.exists():
-        print("❌ Arquivo não encontrado")
+        print("ERRO: arquivo nao encontrado")
         return False
-    
+
     content = orch_file.read_text(encoding="utf-8")
-    
-    # Verifica melhorias implementadas
-    checks = [
-        ("response_format adicionado", 'response_format={"type": "json_object"}' in content),
-        ("disable_search adicionado", '"disable_search": True' in content),
-        ("endpoint_map no construtor", "self.endpoint_map = {" in content),
-        ("Dispatch refatorado", "key_template = (method, path)" in content),
-        ("Comentários em português", "PARÂMETROS CRÍTICOS" in content),
-    ]
-    
-    for check_name, result in checks:
-        status = "✅" if result else "❌"
-        print(f"{status} {check_name}")
-    
-    return all(result for _, result in checks)
 
-def test_people_create():
-    """Verifica se people_create.md foi atualizado."""
-    print("\n🔍 TESTANDO PEOPLE_CREATE.MD")
-    print("=" * 50)
-    
-    pc_file = Path("iacoli_core/agent/tools/people_create.md")
-    if not pc_file.exists():
-        print("❌ Arquivo não encontrado")
+    checks = [
+        ("response_format json_schema", "response_format=AGENT_RESPONSE_FORMAT" in content),
+        ("Funcoes auxiliares de contexto", "_build_dynamic_context_snapshot" in content),
+        ("Loop ReAct", "scratchpad" in content and "max_iterations" in content),
+        ("Observacoes formatadas", "_format_observation" in content),
+        ("Schema constante definida", "AGENT_RESPONSE_FORMAT" in content),
+    ]
+
+    all_ok = True
+    for description, result in checks:
+        status = "OK" if result else "FALHOU"
+        print(f"{status}: {description}")
+        all_ok &= result
+    return all_ok
+
+
+def test_tool_docs() -> bool:
+    """Confere se ao menos uma ferramenta conhecida aparece na documentacao carregada."""
+    _print_header("TESTANDO CARREGAMENTO DE DOCUMENTACAO")
+
+    docs_file = Path("iacoli_core/agent/prompt_builder.py")
+    if not docs_file.exists():
+        print("ERRO: prompt_builder nao encontrado")
         return False
-    
-    content = pc_file.read_text(encoding="utf-8")
-    
-    # Verifica melhorias implementadas
-    checks = [
-        ("Nota sobre 'todas as funções'", "**Nota Importante:**" in content),
-        ("Referência ao contexto", "CONTEXTO ATUAL DO SISTEMA" in content),
-        ("Lista completa de códigos", '"LIB", "CRU", "MIC", "TUR", "NAV", "CER1", "CER2", "CAM"' in content),
-    ]
-    
-    for check_name, result in checks:
-        status = "✅" if result else "❌"
-        print(f"{status} {check_name}")
-    
-    return all(result for _, result in checks)
 
-def main():
-    """Executa todos os testes."""
-    print("🎯 VERIFICAÇÃO DAS MELHORIAS DO AGENTE iAcoli")
-    print("=" * 60)
-    
-    results = []
-    results.append(test_prompt_builder())
-    results.append(test_orchestrator())
-    results.append(test_people_create())
-    
-    print("\n" + "=" * 60)
+    from importlib.util import module_from_spec, spec_from_file_location
+
+    spec = spec_from_file_location("prompt_builder", docs_file)
+    module = module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+
+    docs = module.load_all_tool_docs()
+    checks = [
+        ("people_create.md presente", "=== people_create.md ===" in docs),
+        ("events_manage.md presente", "=== events_manage.md ===" in docs),
+        ("schedule_manage.md presente", "=== schedule_manage.md ===" in docs),
+    ]
+
+    all_ok = True
+    for description, result in checks:
+        status = "OK" if result else "FALHOU"
+        print(f"{status}: {description}")
+        all_ok &= result
+    print(f"Total de caracteres nas ferramentas: {len(docs)}")
+    return all_ok
+
+
+def main() -> None:
+    """Executa todos os testes simples."""
+    print("VERIFICACAO DAS MELHORIAS DO AGENTE iACOLI")
+    print("=" * 45)
+
+    results = [
+        test_prompt_builder(),
+        test_orchestrator(),
+        test_tool_docs(),
+    ]
+
+    print("\n" + "=" * 45)
     if all(results):
-        print("🎉 SUCESSO! Todas as melhorias foram implementadas corretamente!")
-        print("\n📋 RESUMO DAS CORREÇÕES IMPLEMENTADAS:")
-        print("1. ✅ BASE_PROMPT mais restritivo e diretivo")
-        print("2. ✅ Contexto dinâmico com ROLE_CODES e COMMUNITIES")
-        print("3. ✅ response_format={'type': 'json_object'} na API")
-        print("4. ✅ extra_body={'disable_search': True} na API")
-        print("5. ✅ Método _dispatch refatorado com dicionário")
-        print("6. ✅ Instruções claras sobre 'todas as funções'")
-        
-        print("\n🚀 PRÓXIMOS PASSOS:")
-        print("• Teste o agente com 'cadastrar acólito qualificado com todas as funções'")
-        print("• Verifique se ele agora responde apenas em JSON estruturado")
-        print("• Confirme que ele usa as ferramentas em vez de dar conselhos gerais")
-        
+        print("SUCESSO: verificacoes basicas concluídas com sucesso.")
     else:
-        print("❌ Algumas verificações falharam. Revise os arquivos.")
+        print("ATENCAO: algumas verificacoes falharam. Revise as seções acima.")
+
 
 if __name__ == "__main__":
     main()

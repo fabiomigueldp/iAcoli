@@ -2,8 +2,13 @@
 <html lang="pt-BR" data-theme="light">
 <head>
   <meta charset="utf-8" />
-  <title>iAcoli</title>
+  <title>Acoli</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  <!-- Fontes para estilo missal romano/medieval -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@400;700;900&display=swap" rel="stylesheet">
 
   <!-- rrule + FullCalendar -->
   <script src="https://cdn.jsdelivr.net/npm/rrule@2.8.1/dist/es5/rrule.min.js"></script>
@@ -18,107 +23,221 @@
   <style>
     /* ========= Design tokens (tema claro, sóbrio) ========= */
     :root{
-      /* Cores base (neutras) */
-      --bg: #f7f7f8;
-      --surface: #ffffff;
-      --surface-2: #fafafa;
-      --border: #e6e7eb;
-      --text: #111827;
-      --muted: #6b7280;
-      --muted-2: #9ca3af;
+      /* Papel & tintas */
+      --page-cream: #fbf7ef;          /* "papel creme" */
+      --page-ink: #1c1a17;            /* texto principal (preto quente) */
+      --page-ink-weak: #3a362f;       /* subtítulos/UI */
+      --parchment: #fffdf7;           /* cartões/balões */
 
-      /* Acento discreto (azul levemente dessaturado) */
-      --accent: #3a5ccc;          /* ação/foco */
-      --accent-ink: #0f172a;      /* texto sobre superfícies claras */
-      --accent-50: #eef2ff;       /* hover/fundo suave */
-      --accent-200: #c7d2fe;      /* bordas em foco suave */
+      /* Rubricas e douração */
+      --rubric: #7f0d10;              /* vermelho profundo acessível */
+      --rubric-weak: #a11c1f;
+      --gilded: #c7a760;              /* dourado discreto */
+      --hairline: #e2d7c1;            /* filete editorial */
 
-      /* Estado */
-      --ok: #256f4a;
-      --ok-bg: #edf7f1;
-      --warn: #8a6a1f;
-      --warn-bg: #f9f5e6;
-      --danger: #7f1d1d;
-      --danger-bg: #fbebeb;
+      /* Paleta litúrgica (accents) */
+      --season-green: #2e5b34;        /* Tempo Comum */
+      --season-violet: #4b2c5f;       /* Advento/Quaresma */
+      --season-red: #8a0f0f;          /* Pentecostes/Mártires/Paixão */
+      --season-white: #bda46e;        /* branco "dourado" */
+      --season-rose: #b86b7e;         /* Gaudete/Laetare */
+      --season-black: #2b2b2b;        /* Exéquias */
 
-      /* Raio e sombra discretos */
+      /* Accent ativo (iniciado em verde) */
+      --accent: var(--season-green);
+      --accent-50: color-mix(in srgb, var(--accent), #fff 90%);
+      --accent-ink: color-mix(in srgb, var(--accent), #000 30%);
+
+      /* Superfícies (derivadas dos tons "papel") */
+      --bg: var(--page-cream);
+      --surface: var(--parchment);
+      --surface-2: #fffaf2;
+      --border: var(--hairline);
+      --text: var(--page-ink);
+      --muted: var(--page-ink-weak);
+      --muted-2: #6b6a64;
+
+      /* Estados adaptados ao esquema Missal */
+      --ok: #2f6d44;     --ok-bg: #edf7f1;
+      --warn: #8a6a1f;   --warn-bg: #f9f5e6;
+      --danger: var(--rubric); --danger-bg: #fff2f2;
+
+      /* Tipografia & ritmo */
       --radius: 12px;
       --shadow-1: 0 1px 2px rgba(0,0,0,.06);
-      --shadow-2: 0 2px 6px rgba(0,0,0,.06);
+      --shadow-2: 0 6px 18px rgba(0,0,0,.07);
+      --font: 16px/1.6 "Georgia","Garamond","Palatino","Times New Roman",serif;
+      --h1: 18px;
+      --space-1: 6px; --space-2: 10px; --space-3: 14px; --space-4: 18px;
+    }
 
-      /* Tipografia & espaçamento */
-      --font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans";
-      --h1: 16px;
-      --space-1: 6px;
-      --space-2: 10px;
-      --space-3: 14px;
-      --space-4: 18px;
+    .alto-contraste{
+      --page-cream: #fffef9;
+      --page-ink: #111;
+      --rubric: #6b0000;
+      --hairline: #d9ccb2;
+      --gilded: #a98a44;
     }
 
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
-      margin:0; background:var(--bg); color:var(--text); font:var(--font);
+      margin:0; color:var(--text); font:var(--font);
       display:flex; flex-direction:column;
+      background:
+        radial-gradient(1200px 800px at 120% -10%, rgba(199,167,96,.12), transparent 60%),
+        radial-gradient(1000px 600px at -20% 110%, rgba(126,86,40,.06), transparent 60%),
+        var(--bg);
     }
 
-    /* ========= Header ========= */
+    /* Cabeçalho com dupla linha dourada + sombra rubra sutil */
     header{
       position:sticky; top:0; z-index:10;
-      background:var(--surface);
-      border-bottom:1px solid var(--border);
-      box-shadow:var(--shadow-1);
+      background:linear-gradient(to bottom, rgba(255,255,255,.7), rgba(255,255,255,.3)), var(--surface);
+      border-bottom:3px double var(--gilded);
+      box-shadow:0 2px 0 var(--rubric-weak);
       padding: var(--space-3) var(--space-4);
       display:flex; align-items:center; justify-content:space-between; gap: var(--space-3);
     }
-    h1{font-size:var(--h1); margin:0; letter-spacing:.2px; font-weight:700}
-    .bar{display:flex; flex-wrap:wrap; gap: var(--space-2); align-items:center}
-    .field{
-      display:flex; align-items:center; gap: var(--space-2);
-      background:var(--surface-2); padding:8px 10px; border-radius:10px; border:1px solid var(--border);
+    /* ---------- HEADER: título com capitular dinâmica ---------- */
+    header h1{
+      font-size:var(--h1);
+      margin:0;
+      font-weight:800;
+      letter-spacing:.02em;
+      font-variant:small-caps;
     }
-    .field label{color:var(--muted); font-size:12px; white-space:nowrap}
-    .field input[type="password"], .field input[type="text"], .field select{
-      background:transparent; border:none; color:var(--text); outline:none; min-width:180px; font:inherit;
+    header h1::first-letter{
+      font-size:1.9em;
+      line-height:.8;
+      color:var(--accent);
+      margin-right:2px;
+      font-weight:900;
     }
 
-    /* ========= Botões ========= */
+    /* Fitilho sazonal logo abaixo do header */
+    .season-ribbon{
+      height:6px; width:100%;
+      background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent), #000 20%));
+      border-top:1px solid color-mix(in srgb, var(--accent), #fff 40%);
+      border-bottom:1px solid color-mix(in srgb, var(--accent), #000 25%);
+      box-shadow:0 1px 0 #fff, 0 2px 0 rgba(0,0,0,.05) inset;
+    }
+
+    /* Painéis como fólios */
+    .panel{
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      min-height:0; display:flex; flex-direction:column; overflow:hidden;
+      box-shadow: var(--shadow-2);
+    }
+    .panel .title{
+      padding:10px 12px;
+      border-bottom:1px solid var(--border);
+      color:var(--muted);
+      font-weight:700; letter-spacing:.02em; font-variant:small-caps;
+    }
+
+    /* Botões com caráter clássico */
     .btn{
       border:1px solid var(--border);
       background:var(--surface);
-      color:var(--accent-ink);
-      padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:600;
+      color:var(--text);
+      padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700;
       box-shadow:var(--shadow-1);
-      transition: background .15s ease, border-color .15s ease, transform .03s ease;
     }
-    .btn:hover{ background:var(--surface-2) }
-    .btn:active{ transform:translateY(1px) }
     .btn.primary{
-      background:var(--accent); color:white; border-color:transparent; box-shadow:var(--shadow-2);
+      background:linear-gradient(180deg, color-mix(in srgb, var(--accent), #fff 60%), var(--accent));
+      color:#fff; border-color:color-mix(in srgb, var(--accent), #000 35%);
+      text-shadow:0 1px 0 rgba(0,0,0,.25);
     }
-    .btn.primary:hover{ background:#334fb2 }
-    .btn.ghost{ background:transparent; }
-    .btn.danger{ color:var(--danger); border-color:#eed2d2; background:#fff }
-    .btn.danger:hover{ background:#fff5f5 }
+    .btn.danger{ background: var(--danger-bg); border-color: var(--danger); color: var(--rubric); }
+    .btn.ghost{ background:transparent }
+    .btn.mini{ padding:6px 10px; font-size:13px }
 
-    .mini{padding:6px 10px; font-weight:600}
+    /* CHAT — rubricas, proclamações, capitular, meta em versaletes */
+    #messages{ background:var(--surface); }
+    .bubble{
+      max-width:92%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:#fff;
+      box-shadow:var(--shadow-1);
+    }
+    /* fitilho lateral de cada lado */
+    .bubble.bot { align-self:flex-start; border-left:4px solid var(--accent); }
+    .bubble.user{ align-self:flex-end; border-left:4px solid color-mix(in srgb, var(--accent), #000 25%); background:#f3f4f6; }
 
-    /* ========= Layout principal ========= */
-    main{flex:1; display:grid; grid-template-columns: minmax(360px, 520px) 1fr; gap: var(--space-3); padding: var(--space-3); min-height:0}
-    @media (max-width: 1000px){ main{grid-template-columns:1fr; grid-auto-rows: minmax(340px, auto);} }
+    .meta{
+      font-size:12px; color:var(--muted); margin-bottom:6px;
+      font-variant: small-caps; letter-spacing:.04em;
+    }
+    .rubric{ color:var(--rubric); font-style:italic; }
+    .proclamation{ color:var(--text); }
+    .antiphon{ padding-left:18px; text-indent:-18px; }
+    .antiphon::before{ content:"R/ "; color:var(--muted); font-variant:small-caps; letter-spacing:.04em; }
+    .dropcap:first-letter{
+      float:left; font-size:3.1em; line-height:.82; padding-right:.08em; margin-top:.02em;
+      color: color-mix(in srgb, var(--accent), #000 20%); font-weight:700;
+    }
 
-    .panel{
-      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
-      min-height:0; display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--shadow-1);
+    /* texto interno pode quebrar normalmente */
+    .bubble .proclamation,
+    .bubble .rubric,
+    .bubble .antiphon { white-space: normal; }
+
+    /* Campos, barras e focos coerentes */
+    .field{ background:var(--surface-2); border:1px solid var(--border); }
+    .inputRow{ background:var(--surface-2); border-top:1px solid var(--border); }
+    :focus-visible{ outline:2px solid color-mix(in oklab, var(--accent) 55%, transparent); outline-offset:2px; }
+
+    /* TOAST em chave verde/rubra */
+    .toast{ background:#fff; color:var(--text); border-left:4px solid var(--ok); border:1px solid var(--border); }
+    .toast.err{ border-left-color: var(--rubric); background: var(--danger-bg); }
+
+    /* CALENDÁRIO — cartões com duas tintas e seleção em dourado */
+    .event-card{
+      background:#fffdfa;
+      border:1px solid var(--border);
+      border-radius:10px;
+      box-shadow: var(--shadow-1);
     }
-    .panel.calendar-panel{
-      overflow:visible;
-      position:relative;
+    .event-card .event-title{ color:var(--text); font-weight:700; }
+    .event-card .event-meta{ color:var(--muted); }
+    .fc-event.is-selected .event-card{
+      border-color: var(--gilded);
+      box-shadow: 0 0 0 2px rgba(199,167,96,.35);
     }
-    .panel .title{
-      padding:10px 12px; border-bottom:1px solid var(--border); color:var(--muted); font-weight:700; letter-spacing:.2px;
-      display:flex; align-items:center; justify-content:space-between; gap:8px
+
+    /* FullCalendar em chave Missal */
+    .fc .fc-toolbar-title{ font-size:14px; font-weight:700; color:var(--text); font-variant:small-caps; }
+    .fc .fc-button{
+      background:#fff; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:5px 10px;
     }
+    .fc .fc-button-primary:hover{
+      background:var(--surface-2); border-color:var(--border); color:var(--text);
+    }
+    .fc-theme-standard td, .fc-theme-standard th{ border-color:var(--border) }
+    .fc .fc-daygrid-day-number{ color:var(--muted); font-weight:600 }
+    .fc .fc-col-header-cell-cushion{ color:var(--muted); }
+    .fc .fc-day-today{ background: color-mix(in srgb, var(--accent), #fff 85%) !important }
+
+    /* Popover do dia com "pergaminho" */
+    .day-overlay{
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow:0 4px 20px rgba(0,0,0,.15);
+    }
+    .day-overlay-item:hover{
+      border-color: color-mix(in srgb, var(--accent), #000 20%);
+      background: color-mix(in srgb, var(--accent), #fff 90%);
+    }
+
+    /* Filetes em dourado sob títulos principais (opcional) */
+    .panel .title{ border-bottom:3px double var(--gilded); box-shadow: 0 1px 0 var(--rubric-weak); }
 
     /* ========= Chat ========= */
     #chat{display:flex; flex-direction:column; height:100%}
@@ -131,12 +250,6 @@
     #messages::-webkit-scrollbar-track{ background:transparent }
     #messages::-webkit-scrollbar-thumb{ background:#d6d8dd; border:2px solid transparent; background-clip:padding-box; border-radius:999px }
 
-    .bubble{
-      max-width:92%; padding:10px 12px; border-radius:12px; border:1px solid var(--border); white-space:pre-wrap; word-break:break-word;
-      background:#fff;
-    }
-    .user{ align-self:flex-end; background:#f3f4f6 }
-    .bot{ align-self:flex-start; background:#ffffff }
     .meta{ font-size:11px; color:var(--muted); margin-bottom:6px }
 
     .inputRow{
@@ -153,17 +266,7 @@
 
     /* ========= Calendário ========= */
     .calendar-panel{display:flex; flex-direction:column;}
-    .calendarShell{
-      flex:1;
-      display:grid;
-      grid-template-columns:minmax(0,1fr) minmax(240px,320px);
-      gap: var(--space-3);
-      padding: var(--space-3);
-      background: var(--surface);
-      min-height:0;
-      align-items:stretch;
-      position:relative;
-    }
+
     #calendar{
       min-height:420px;
       background: var(--surface);
@@ -201,6 +304,7 @@
       line-height:1.35;
       display:-webkit-box;
       -webkit-line-clamp:2;
+      line-clamp: 2;
       -webkit-box-orient:vertical;
       overflow:hidden;
       text-overflow:ellipsis;
@@ -213,6 +317,7 @@
       line-height:1.4;
       display:-webkit-box;
       -webkit-line-clamp:2;
+      line-clamp: 2;
       -webkit-box-orient:vertical;
       overflow:hidden;
     }
@@ -276,129 +381,6 @@
       gap: var(--space-2);
       margin-top:auto;
     }
-    .event-card{
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-      padding:6px 8px;
-      background:var(--accent-50);
-      border-radius:10px;
-      border:1px solid transparent;
-      min-width:0;
-      overflow:hidden;
-      position:relative;
-    }
-    .event-card .event-title{
-      font-weight:700;
-      font-size:12px;
-      color: var(--accent-ink);
-      display:-webkit-box;
-      -webkit-line-clamp:1;
-      -webkit-box-orient:vertical;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      line-height:1.3;
-    }
-    .event-card .event-meta{
-      font-size:11px;
-      color: var(--muted);
-      display:-webkit-box;
-      -webkit-line-clamp:1;
-      -webkit-box-orient:vertical;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      line-height:1.3;
-    }
-    .day-overlay{
-      position:fixed;
-      z-index:1000;
-      min-width:240px;
-      max-width:300px;
-      background:var(--surface);
-      border:1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow:0 4px 20px rgba(0,0,0,.15);
-      padding:12px;
-      display:flex;
-      flex-direction:column;
-      gap: var(--space-2);
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      max-height:80vh;
-      overflow:hidden;
-      box-sizing:border-box;
-    }
-    .day-overlay[hidden]{display:none;}
-    .day-overlay-head{
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
-    }
-    .day-overlay-date{
-      font-weight:700; font-size:13px; color: var(--accent-ink); line-height:1.3;
-    }
-    .day-overlay-close{
-      border:none; background:transparent; color: var(--muted); padding:4px; border-radius:8px; cursor:pointer;
-    }
-    .day-overlay-close:hover{
-      background:var(--surface-2); color: var(--accent-ink);
-    }
-    .day-overlay-list{
-      display:flex; flex-direction:column; gap:8px;
-      overflow-y:auto; padding-right:2px;
-      scrollbar-width: thin;
-    }
-    .day-overlay-item{
-      display:flex; flex-direction:column; align-items:flex-start; gap:4px;
-      border:1px solid var(--border); background:var(--surface-2); border-radius:10px;
-      padding:8px 10px; width:100%; cursor:pointer;
-      transition:border-color .15s ease, background .15s ease;
-    }
-    .day-overlay-item:hover{
-      border-color: var(--accent-200); background: var(--accent-50);
-    }
-    .day-overlay-item:focus-visible{
-      outline:2px solid color-mix(in oklab, var(--accent) 55%, transparent); outline-offset:2px;
-    }
-    .day-overlay-item .item-title{
-      font-weight:600; font-size:13px; color: var(--accent-ink);
-    }
-    .day-overlay-item .item-meta{
-      font-size:12px; color: var(--muted);
-    }
-    .day-overlay-item .item-foot{
-      font-size:12px; color: var(--muted-2);
-    }
-    .fc .day-overlay-target{
-      box-shadow: inset 0 0 0 2px rgba(58,92,204,.22);
-      outline: 2px solid rgba(58,92,204,.18);
-      outline-offset: 2px;
-      border-radius: 8px;
-    }
-    .fc .fc-daygrid-event,
-    .fc .fc-timegrid-event{
-      border:none;
-      background:transparent;
-    }
-    .fc .fc-daygrid-event .fc-event-main,
-    .fc .fc-timegrid-event .fc-event-main{
-      padding:0;
-    }
-    .fc .fc-daygrid-more-link{
-      font-size:11px;
-      color: var(--accent-ink);
-      background: var(--surface);
-      border:1px solid var(--border);
-      border-radius:999px;
-      padding:2px 8px;
-      display:inline-flex;
-      align-items:center;
-      gap:4px;
-      transition:background .15s ease, color .15s ease;
-    }
-    .fc .fc-daygrid-more-link:hover{
-      background:var(--accent-50);
-      color: var(--accent-ink);
-    }
-
     .fc-event.is-selected .event-card{
       border-color: var(--accent);
       box-shadow:0 0 0 2px rgba(58,92,204,.18);
@@ -412,22 +394,19 @@
       }
     }
     /* FullCalendar: tema neutro e coerente */
-    .fc .fc-toolbar-title{ font-size:14px; font-weight:700; color:var(--accent-ink) }
+    .fc .fc-toolbar-title{ font-size:14px; font-weight:700; color:var(--text); font-variant:small-caps; }
     .fc .fc-button{
-      background:#fff; border:1px solid var(--border); color:var(--accent-ink); border-radius:8px; padding:5px 10px;
+      background:#fff; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:5px 10px;
     }
     .fc .fc-button-primary:not(:disabled).fc-button-active,
     .fc .fc-button-primary:not(:disabled):active,
     .fc .fc-button-primary:hover{
-      background:var(--surface-2); border-color:var(--border); color:var(--accent-ink);
+      background:var(--surface-2); border-color:var(--border); color:var(--text);
     }
     .fc-theme-standard td, .fc-theme-standard th{ border-color:var(--border) }
     .fc .fc-daygrid-day-number{ color:var(--muted); font-weight:600 }
     .fc .fc-col-header-cell-cushion{ color:var(--muted); }
-    .fc .fc-day-today{ background: #f0f4ff !important }
-    .fc-list{
-      --fc-list-event-hover-bg-color: #f9fafb;
-    }
+    .fc .fc-day-today{ background: color-mix(in srgb, var(--accent), #fff 85%) !important }
 
     /* ========= details/sources ========= */
     details{margin-top:8px; border-top:1px dashed var(--border); padding-top:8px}
@@ -457,74 +436,367 @@
       outline:2px solid color-mix(in oklab, var(--accent) 55%, transparent); outline-offset:2px;
     }
 
-    @media (prefers-reduced-motion: reduce){
-      *{scroll-behavior:auto}
-      .btn{transition:none}
+    .visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+    main{
+      display: grid;
+      grid-template-columns: 1fr 2fr 1fr;
+      gap: var(--space-3);
+      padding: var(--space-3);
+      min-height: calc(100vh - 120px); /* considerando header e ribbon */
     }
-  </style>
-</head>
+    .modal{
+      position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,.5); z-index:1000;
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; visibility:hidden; transition:opacity 0.2s ease, visibility 0.2s ease;
+    }
+    .modal.open{
+      opacity:1; visibility:visible;
+    }
+    /* ---------- MODAL (layout mais limpo e preciso) ---------- */
+    .modal-content{
+      max-width:720px; /* mais confortável */
+      width:92%;
+      max-height:82vh;
+      overflow:auto;
+      background:var(--surface);
+      border-radius:calc(var(--radius) + 2px);
+      box-shadow:0 18px 45px rgba(0,0,0,.25);
+      border:1px solid var(--border);
+    }
+    .modal-header{
+      display:flex; justify-content:space-between; align-items:center;
+      padding: 14px 18px;
+      border-bottom:1px solid var(--border);
+    }
+    .modal-header h2{
+      margin:0; font-size:16px; font-weight:800; letter-spacing:.02em; font-variant:small-caps;
+    }
+    .modal-body{
+      padding: var(--space-4);
+      display:flex; flex-direction:column; gap: var(--space-3);
+    }
+    .modal-actions{
+      display:flex; gap: var(--space-2); justify-content:flex-start;
+    }
+
+    /* ===== POPUP de "Eventos do dia" (substitui o popover padrão do FC) ===== */
+    :root{
+      /* camada acima do header (10) e do toast (20), mas abaixo dos modais (1000) */
+      --z-popover: 60;
+    }
+
+    .day-overlay{
+      position: fixed; /* já é setado em JS, repetimos por segurança */
+      inset: auto auto auto auto; /* neutral */
+      z-index: var(--z-popover);
+      background: var(--surface);               /* fundo opaco */
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 12px 30px rgba(0,0,0,.18), 0 2px 6px rgba(0,0,0,.08);
+      width: 280px; /* JS ajusta com Floating UI; aqui é mínimo seguro */
+      overflow: hidden; /* para o cabeçalho fixo */
+    }
+
+    .day-overlay[hidden]{ display:none !important; }
+
+    .day-overlay-head{
+      display:flex; align-items:center; justify-content:space-between;
+      gap: 8px;
+      position: sticky; top:0;
+      background: var(--surface);
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .day-overlay-date{
+      font-weight: 700; font-size: 13px;
+      color: var(--accent-ink);
+    }
+
+    .day-overlay-close{
+      appearance: none; border:0; background: transparent;
+      font-size: 20px; line-height: 1; cursor: pointer; color: var(--muted);
+      border-radius: 8px; padding: 2px 6px;
+    }
+    .day-overlay-close:hover,
+    .day-overlay-close:focus-visible{
+      background: color-mix(in srgb, var(--accent), #fff 90%);
+      outline: 2px solid color-mix(in oklab, var(--accent) 55%, transparent);
+      outline-offset: 2px;
+    }
+
+    .day-overlay-list{
+      max-height: 320px; /* será refinado pelo FloatingUI.size() */
+      overflow: auto;
+      padding: 8px;
+      display:flex; flex-direction:column; gap: 8px;
+    }
+
+    .day-overlay-item{
+      display:block; width:100%; text-align:left;
+      background: #fff; color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      min-height: 44px; /* alvo de toque/acessibilidade */
+      box-shadow: var(--shadow-1);
+    }
+    .day-overlay-item .item-title{ font-weight:700; font-size: 13px; }
+    .day-overlay-item .item-meta{ font-size:12px; color: var(--muted); margin-top:2px; }
+    .day-overlay-item .item-foot{ font-size:12px; color: var(--muted-2); margin-top:4px; }
+
+    .day-overlay-item:hover,
+    .day-overlay-item:focus-visible{
+      border-color: color-mix(in srgb, var(--accent), #000 20%);
+      background: color-mix(in srgb, var(--accent), #fff 90%);
+      outline: 2px solid color-mix(in oklab, var(--accent) 55%, transparent);
+      outline-offset: 2px;
+    }
+
+    .day-overlay-item:active{ transform: translateY(1px); }
+
+    /* realce da célula do dia quando o popover está aberto */
+    .day-overlay-target{
+      outline: 2px solid color-mix(in oklab, var(--accent) 55%, transparent);
+      outline-offset: -2px;
+      border-radius: 6px;
+    }
+
+    /* (opcional) garanta que o link "+N mais" fique acima do conteúdo da célula */
+    .fc-daygrid-more-link{ position: relative; z-index: calc(var(--z-popover) + 1); }
+
+    /* === Estado de digitação (streaming) === */
+    .bubble.bot.is-typing .typing-line{
+      display:inline-flex; gap:4px; align-items:center;
+      padding:4px 0;
+    }
+    .typing-dot{
+      width:6px; height:6px; border-radius:999px; background: var(--muted);
+      display:inline-block; animation: dotPulse 1.2s infinite ease-in-out;
+    }
+    .typing-dot:nth-child(2){ animation-delay:.2s }
+    .typing-dot:nth-child(3){ animation-delay:.4s }
+    @keyframes dotPulse{
+      0%, 60%, 100% { transform: translateY(0); opacity:.6 }
+      30% { transform: translateY(-3px); opacity:1 }
+    }
+
+    /* === Progresso de ações (criar/editar/remover) === */
+    .action-progress{
+      margin-top:8px; background: var(--surface); border:1px solid var(--border);
+      border-left:4px solid var(--gilded); border-radius:10px; padding:10px 12px;
+      box-shadow: var(--shadow-1);
+    }
+    .action-progress-head{
+      font-size:12px; color:var(--muted); margin-bottom:6px; font-variant: small-caps; letter-spacing:.04em;
+    }
+    .action-progress-bar{
+      height:6px; background: #f5efe1; border-radius:999px; overflow:hidden; position:relative;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
+    }
+    .action-progress-bar .fill{
+      height:100%; width:0%;
+      background: linear-gradient(90deg, var(--gilded), color-mix(in srgb, var(--gilded), #000 20%));
+      transition: width .35s ease;
+    }
+    .action-progress.done{
+      border-left-color: var(--ok);
+    }
+    .action-progress.done .action-progress-head::after{
+      content:" ✓";
+      color: var(--ok);
+    }
+
+    /* === Mini shimmer para placeholders (opcional) === */
+    .shimmer{
+      position:relative; overflow:hidden; background: #fff;
+    }
+    .shimmer::after{
+      content:""; position:absolute; inset:0 -150%; transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
+      animation: shimmer 1.2s infinite;
+    }
+    @keyframes shimmer{ 100% { transform: translateX(100%)} }
+
+    /* ---------- “Marca” dentro do modal (sem balão) ---------- */
+    .modal-brand{
+      margin: 16px 0 24px 0;
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-1);
+      text-align: center;
+    }
+
+    
+    .modal-brand .main-title {
+      font-family: "Cinzel", "Times New Roman", serif;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--rubric);
+      line-height: 1;
+      margin: 0 8px;
+    }
+    
+    .modal-brand .liturgical-frame {
+      display: inline-flex;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 6px 12px;
+      border: 2px solid var(--gilded);
+      border-radius: 6px;
+      background: rgba(199,167,96,0.03);
+    }
+    
+    .modal-brand .alpha-omega-symbol {
+      font-family: "Times New Roman", serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gilded);
+      opacity: 0.85;
+      line-height: 1;
+    }
+    
+    .modal-brand .subtitle {
+      font-family: "Times New Roman", serif;
+      font-size: 11px;
+      font-variant: small-caps;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.4;
+      max-width: 300px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    /* Versões responsivas para escalabilidade */
+    @media (max-width: 600px) {
+      .modal-brand .main-title {
+        font-size: 22px;
+        letter-spacing: 0.1em;
+      }
+      .modal-brand .alpha-omega-symbol {
+        font-size: 16px;
+      }
+      .modal-brand .subtitle {
+        font-size: 10px;
+        max-width: 280px;
+      }
+    }
+    
+    /* Versão para contextos muito pequenos */
+    @media (max-width: 400px) {
+      .modal-brand {
+        padding: 16px;
+      }
+      .modal-brand .liturgical-frame {
+        padding: 4px 8px;
+      }
+      .modal-brand .main-title {
+        font-size: 20px;
+        letter-spacing: 0.08em;
+      }
+      .modal-brand .alpha-omega-symbol {
+        font-size: 14px;
+      }
+    }
+    
+    /* Versão monocromática (para impressão) */
+    @media print {
+      .modal-brand .liturgical-frame {
+        border-color: #333;
+        background: transparent;
+      }
+      .modal-brand .alpha-omega-symbol,
+      .modal-brand .main-title {
+        color: #333 !important;
+      }
+      .modal-brand .subtitle {
+        color: #666 !important;
+      }
+    }
+
+    /* Ajuda/hints dos campos */
+    .hint{ font-size:12px; color:var(--muted); margin-top:4px; }
+
+    /* Layout agradável para grupos de opções */
+    .options-grid{ display:grid; grid-template-columns:1fr; gap:12px; }
+    @media (min-width:600px){ .options-grid{ grid-template-columns:1fr 1fr; } }
+
+    .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow-1); }
+    .card h3{ margin:0 0 6px 0; font-size:13px; color:var(--accent-ink); }
+
+    /* Manual enxuto */
+    .manual{ font-size:12px; color:var(--muted); border-top:1px dashed var(--border); padding-top:10px; }
+    .manual code{ font-size:12px; }
+
+    /* FullCalendar: daygrid overflow hidden para evitar sobreposição */
+    .fc-daygrid-day-events{ overflow:hidden; padding-bottom:20px; }
+
+    /* "+N more" chip posicionado corretamente */
+    .fc-daygrid-more-link{
+      position:absolute; top:2px; left:2px;
+      background:var(--accent); color:#fff; border-radius:12px; padding:2px 6px;
+      font-size:11px; font-weight:600; text-decoration:none;
+      box-shadow:0 1px 3px rgba(0,0,0,.2);
+      z-index:1;
+    }
+  </style></head>
 <body>
   <header aria-label="Barra superior">
-    <h1>iAcoli</h1>
-    <div class="bar" role="group" aria-label="Preferências">
-      <div class="field" title="Sua chave NUNCA deve ir para produção no front-end">
-        <label for="apiKey">Chave:</label>
-        <input id="apiKey" type="password" placeholder="pplx-..." autocomplete="off" />
-        <button id="reveal" class="btn ghost mini" type="button" aria-pressed="false" aria-controls="apiKey">ver</button>
-      </div>
-      <div class="field">
-        <label for="model">Modelo:</label>
-        <select id="model" aria-label="Modelo">
-          <option value="sonar" selected>sonar (leve)</option>
-          <option value="sonar-pro">sonar-pro (pesquisa avançada)</option>
-          <option value="sonar-reasoning-pro">sonar-reasoning-pro</option>
-          <option value="sonar-reasoning">sonar-reasoning</option>
-          <option value="sonar-deep-research">sonar-deep-research</option>
-        </select>
-      </div>
-      <div class="bar">
-        <button id="testBtn" class="btn mini" type="button">Testar API</button>
-        <button id="clearChat" class="btn danger mini" type="button">Limpar chat</button>
-      </div>
-    </div>
+    <h1>Acoli</h1>
+    <button id="optionsBtn" class="btn mini" type="button" title="Abrir opções">⚙️ Opções</button>
   </header>
+
+  <div class="season-ribbon" aria-hidden="true"></div>
 
   <main>
     <section class="panel" id="chat" aria-label="Chat">
-      <div class="title"><span>Chat — iAcoli</span></div>
+      <div class="title"><span>Chat — Acoli</span></div>
       <div id="messages" aria-live="polite" aria-atomic="false"></div>
       <div class="inputRow">
-        <label for="input" class="sr-only" aria-hidden="true" style="position:absolute;left:-9999px;">Mensagem</label>
-        <textarea id="input" placeholder="Escreva aqui… (ex.: Agende amanhã às 15h por 1h com Ana)" aria-label="Mensagem para o agente"></textarea>
+        <label for="input" class="visually-hidden" aria-hidden="true">Mensagem</label>
+        <textarea
+          id="input"
+          placeholder="Ex.: Dom 19:30 — Missa na Matriz. LIB: João; CRU: Ana"
+          aria-label="Mensagem para o Acoli">
+        </textarea>
         <button id="send" class="btn primary" type="button">Enviar</button>
       </div>
     </section>
 
     <section class="panel calendar-panel" aria-label="Calendário">
       <div class="title">Calendário</div>
-      <div class="calendarShell">
-        <div id="calendar" aria-label="Agenda"></div>
-        <aside id="eventDetails" aria-live="polite">
-          <div class="event-details-empty" role="note">Selecione uma missa no calendário.</div>
-          <div class="event-details-content" hidden>
-            <div class="event-details-head">
-              <h2 id="detailTitle">Missa</h2>
-              <div class="event-details-time" id="detailTime"></div>
-            </div>
-            <div class="event-details-meta" id="detailLocation" data-label="Local" hidden></div>
-            <div class="event-details-meta" id="detailDescription" data-label="Observações" hidden></div>
-            <div class="event-details-acolytes" id="detailAcolytesSection" hidden>
-              <div class="event-details-acolytes-title">Escala de acólitos</div>
-              <ul class="acolyte-list" id="detailAcolytes"></ul>
-            </div>
-            <div class="details-actions">
-              <button id="editEvent" class="btn mini" type="button">Editar</button>
-              <button id="deleteEvent" class="btn danger mini" type="button">Excluir</button>
-            </div>
-          </div>
-        </aside>
-      </div>
+      <div id="calendar" aria-label="Agenda"></div>
     </section>
+
+    <aside id="eventDetails" aria-live="polite" class="panel">
+      <div class="event-details-empty" role="note">Selecione uma missa no calendário.</div>
+      <div class="event-details-content" hidden>
+        <div class="event-details-head">
+          <h2 id="detailTitle">Missa</h2>
+          <div class="event-details-time" id="detailTime"></div>
+        </div>
+        <div class="event-details-meta" id="detailLocation" data-label="Local" hidden></div>
+        <div class="event-details-meta" id="detailDescription" data-label="Observações" hidden></div>
+        <div class="event-details-acolytes" id="detailAcolytesSection" hidden>
+          <div class="event-details-acolytes-title">Escala de acólitos</div>
+          <ul class="acolyte-list" id="detailAcolytes"></ul>
+        </div>
+        <div class="details-actions">
+          <button id="editEvent" class="btn mini" type="button">Editar</button>
+          <button id="deleteEvent" class="btn danger mini" type="button">Excluir</button>
+        </div>
+      </div>
+    </aside>
   </main>
 
   <!-- Popover posicionado fora do grid para evitar problemas de layout -->
@@ -534,6 +806,146 @@
       <button type="button" id="dayOverlayClose" class="day-overlay-close" aria-label="Fechar lista de eventos">&times;</button>
     </div>
     <div class="day-overlay-list" id="dayOverlayList"></div>
+  </div>
+
+  <!-- Modal de opções -->
+  <div id="optionsModal" class="modal" hidden>
+    <div class="modal-content panel">
+      <div class="modal-header">
+        <h2>Opções</h2>
+        <button id="closeModal" class="btn ghost mini" type="button" aria-label="Fechar modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-brand">
+          <div class="liturgical-frame">
+            <span class="alpha-omega-symbol">Α</span>
+            <div class="main-title">ACOLI</div>
+            <span class="alpha-omega-symbol">Ω</span>
+          </div>
+          <div class="subtitle">
+            Administração de Conjuntos de Ofícios Litúrgicos Inteligente
+          </div>
+        </div>
+
+        <div class="options-grid">
+          <div class="card">
+            <h3>API Groq</h3>
+            <div class="field" title="Sua chave NUNCA deve ir para produção no front-end">
+              <label for="apiKey">Chave API:</label>
+              <input id="apiKey" type="password" placeholder="gsk_..." autocomplete="off" />
+              <button id="reveal" class="btn ghost mini" type="button" aria-pressed="false" aria-controls="apiKey">ver</button>
+            </div>
+            <div class="field">
+              <label for="model">Modelo:</label>
+              <select id="model" aria-label="Modelo">
+                <option value="openai/gpt-oss-20b" selected>GPT-OSS 20B (rápido)</option>
+                <option value="openai/gpt-oss-120b">GPT-OSS 120B (mais capaz)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="reasoningFormat">Formato de raciocínio:</label>
+              <select id="reasoningFormat">
+                <option value="">(padrão)</option>
+                <option value="parsed">parsed (separa raciocínio)</option>
+                <option value="hidden">hidden (sem raciocínio)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="reasoningEffort">Esforço de raciocínio (GPT-OSS):</label>
+              <select id="reasoningEffort">
+                <option value="">(padrão)</option>
+                <option value="low">low</option>
+                <option value="medium" selected>medium</option>
+                <option value="high">high</option>
+              </select>
+            </div>
+            <div class="field">
+              <label><input type="checkbox" id="jsonMode"/> Saída JSON estrita (ações)</label>
+            </div>
+            <div class="modal-actions">
+              <button id="testBtn" class="btn mini" type="button">Testar API</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Preferências</h3>
+            <label title="Estação litúrgica">
+              <select id="season">
+                <option value="green">Tempo Comum (Verde)</option>
+                <option value="violet">Advento / Quaresma (Roxo)</option>
+                <option value="white">Natal / Páscoa (Branco & Dourado)</option>
+                <option value="red">Pentecostes / Mártires (Vermelho)</option>
+                <option value="rose">Gaudete / Laetare (Rosa)</option>
+                <option value="black">Exéquias (Preto)</option>
+              </select>
+            </label>
+            <div class="hint">Muda cores do tema litúrgico.</div>
+            <div class="field">
+              <label><input type="checkbox" id="preferDayViewMore"/> Preferir vista de dia ao clicar "+N mais"</label>
+            </div>
+            <div class="hint">Abre a vista diária em vez do popover.</div>
+            <button id="contrast" class="btn ghost mini" type="button">Alto contraste</button>
+            <div class="hint">Melhora acessibilidade visual.</div>
+            <div class="modal-actions">
+              <button id="clearChat" class="btn danger mini" type="button">Limpar chat</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="manual">
+          <strong>Como usar:</strong> Digite mensagens como "Dom 19:30 — Missa na Matriz. LIB: João; CRU: Ana".<br>
+          O Acoli cria/edita/muda missas automaticamente. Use <code>listar próximos 14 dias</code> para ver a agenda.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de edição de evento -->
+  <div id="eventModal" class="modal" hidden>
+    <div class="modal-content panel">
+      <div class="modal-header">
+        <h2 id="eventModalTitle">Criar Missa</h2>
+        <button id="closeEventModal" class="btn ghost mini" type="button" aria-label="Fechar modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="eventTitle">Título:</label>
+          <input id="eventTitle" type="text" placeholder="Nome da missa" />
+        </div>
+        <div class="field">
+          <label for="eventStart">Início:</label>
+          <input id="eventStart" type="datetime-local" />
+        </div>
+        <div class="field">
+          <label for="eventEnd">Fim:</label>
+          <input id="eventEnd" type="datetime-local" />
+        </div>
+        <div class="field">
+          <label for="eventDuration">Duração (min):</label>
+          <input id="eventDuration" type="number" min="1" placeholder="60" />
+        </div>
+        <div class="field">
+          <label for="eventLocation">Local:</label>
+          <input id="eventLocation" type="text" placeholder="Igreja..." />
+        </div>
+        <div class="field">
+          <label for="eventDescription">Observações:</label>
+          <textarea id="eventDescription" rows="3" placeholder="Detalhes adicionais"></textarea>
+        </div>
+        <div class="field">
+          <label for="eventAcolytes">Acólitos:</label>
+          <textarea id="eventAcolytes" rows="2" placeholder="LIB: João, CAM: Maria"></textarea>
+        </div>
+        <div class="field">
+          <label for="eventRrule">Recorrência (RRULE):</label>
+          <input id="eventRrule" type="text" placeholder="FREQ=WEEKLY;BYDAY=SU" />
+        </div>
+        <div class="modal-actions">
+          <button id="saveEvent" class="btn primary" type="button">Salvar</button>
+          <button id="cancelEvent" class="btn ghost" type="button">Cancelar</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -548,7 +960,85 @@
 
     // ======= Estado & Persistência =======
     const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo';
-    const AGENT_NAME = 'iAcoli';
+    const AGENT_NAME = 'Acoli';
+    const SYSTEM_PROMPT = `
+Você é o ${AGENT_NAME}, um assistente de IA especializado em agendamento litúrgico (pt-BR).
+
+REGRAS DE SAÍDA (OBRIGATÓRIO - SEMPRE SIGA):
+1. Primeira linha: UMA frase curta confirmando a ação
+2. Segunda linha: Sempre inclua um bloco de código JSON
+3. NUNCA omita o JSON - toda resposta deve ter texto + JSON
+
+FORMATO OBRIGATÓRIO:
+[Texto de confirmação]
+\`\`\`json
+{"schedule":{"action":"...", ...}}
+\`\`\`
+
+EXEMPLOS:
+- Delete: "Missas apagadas." + JSON com action delete
+- Create: "Missa criada." + JSON com action create
+
+AÇÕES SUPORTADAS:
+1) Forma canônica (um evento):
+   {"schedule":{
+     "action":"create|update|delete|move|list",
+     "id":"(opcional)",
+     "title":"Título da missa",
+     "start":"YYYY-MM-DDTHH:MM",
+     "end":"(opcional) YYYY-MM-DDTHH:MM",
+     "durationMinutes": 60,
+     "duration":"(opcional) PT60M",
+     "startTime":"(opcional) HH:MM:SS (para RRULE)",
+     "rrule":"(opcional) ex. FREQ=WEEKLY;BYDAY=SA;DTSTART=2025-10-04T17:00:00",
+     "location":"Local",
+     "description":"Obs",
+     "acolytes": {"LIB":"Nome", "CRU":"Nome", "CAM":"Nome"}
+   }}
+
+2) Atalho multi-dia (DIAS CONSECUTIVOS, NÃO usar para finais de semana):
+   {"action":"create_mass_schedule",
+    "start_date":"YYYY-MM-DD",
+    "days":N,                  // N dias consecutivos
+    "time":"HH:MM",
+    "location":"Local",
+    "event":"Título",
+    "acolytes":{...}}
+
+⚠️ Recorrente semanal (sábados, domingos etc.): **NUNCA** use create_mass_schedule.
+Use SEMPRE:
+{"schedule":{
+  "action":"create",
+  "title":"...",
+  "rrule":"FREQ=WEEKLY;BYDAY=SA;DTSTART=YYYY-MM-DDTHH:MM:00",
+  "duration":"PT60M",
+  "location":"...",
+  "acolytes":{...}
+}}
+
+⚠️ Para RRULE: **NUNCA** use UNTIL=YYYY-MM-DDTHH:mm:ss (ISO). Use sempre UNTIL=YYYYMMDDTHHmmss (compacto).
+
+3) Ações para ocorrências específicas (excluir/editar uma ocorrência de série recorrente):
+   {"action":"delete_occurrence", "id":"id-do-evento-recorrente", "occurrence_date":"YYYY-MM-DDTHH:MM"}
+   {"action":"update_occurrence", "id":"id-do-evento-recorrente", "occurrence_date":"YYYY-MM-DDTHH:MM", "new_start":"YYYY-MM-DDTHH:MM", "title":"...", "location":"...", "acolytes":{...}}
+   {"action":"move_occurrence", "id":"id-do-evento-recorrente", "occurrence_date":"YYYY-MM-DDTHH:MM", "new_start":"YYYY-MM-DDTHH:MM"}
+
+Impressão no chat:
+- Para listar: {"schedule":{"action":"list","days":14}} // padrão próximos 14 dias
+  (ou use "windowStart":"YYYY-MM-DD","windowEnd":"YYYY-MM-DD")
+
+Apagar TUDO: {"schedule":{"action":"delete","id":"ALL"}}
+Apagar por título: {"schedule":{"action":"delete","title":"Missa"}}
+Mover:
+- Relativo: {"schedule":{"action":"move","id":"...","deltaMinutes":30}}
+- Absoluto: {"schedule":{"action":"move","id":"...","to":"YYYY-MM-DDTHH:MM"}}
+
+Códigos de acólitos: LIB, CAM, CRU, CER, TUR, NAV, MIC.
+Sinônimos aceitos: librífero, campanário, cruciferário, ceroferário, turiferário, naveteiro, microfonário.
+Se não especificar nomes, posso atribuir aleatoriamente do roster disponível.
+
+Seja sucinto, objetivo e liturgicamente coerente.
+`;
 
     const messagesEl = document.getElementById('messages');
     const inputEl = document.getElementById('input');
@@ -556,6 +1046,10 @@
     const apiKeyEl = document.getElementById('apiKey');
     const revealBtn = document.getElementById('reveal');
     const modelEl = document.getElementById('model');
+    const reasoningFormatEl = document.getElementById('reasoningFormat');
+    const reasoningEffortEl = document.getElementById('reasoningEffort');
+    const jsonModeEl = document.getElementById('jsonMode');
+    const preferDayViewMoreEl = document.getElementById('preferDayViewMore');
     const testBtn = document.getElementById('testBtn');
     const clearChatBtn = document.getElementById('clearChat');
     const toast = document.getElementById('toast');
@@ -575,11 +1069,33 @@
     const dayOverlayListEl = document.getElementById('dayOverlayList');
     const dayOverlayCloseBtn = document.getElementById('dayOverlayClose');
 
+    const eventModal = document.getElementById('eventModal');
+    const eventModalTitle = document.getElementById('eventModalTitle');
+    const closeEventModalBtn = document.getElementById('closeEventModal');
+    const eventTitleEl = document.getElementById('eventTitle');
+    const eventStartEl = document.getElementById('eventStart');
+    const eventEndEl = document.getElementById('eventEnd');
+    const eventDurationEl = document.getElementById('eventDuration');
+    const eventLocationEl = document.getElementById('eventLocation');
+    const eventDescriptionEl = document.getElementById('eventDescription');
+    const eventAcolytesEl = document.getElementById('eventAcolytes');
+    const eventRruleEl = document.getElementById('eventRrule');
+    const saveEventBtn = document.getElementById('saveEvent');
+    const cancelEventBtn = document.getElementById('cancelEvent');
+
     const SETTINGS = {
-      get apiKey(){ return localStorage.getItem('pplx_api_key') || ''; },
-      set apiKey(v){ localStorage.setItem('pplx_api_key', v || ''); },
-      get model(){ return localStorage.getItem('pplx_model') || 'sonar'; },
-      set model(v){ localStorage.setItem('pplx_model', v || 'sonar'); },
+      get apiKey(){ return localStorage.getItem('groq_api_key') || ''; },
+      set apiKey(v){ localStorage.setItem('groq_api_key', v || ''); },
+      get model(){ return localStorage.getItem('groq_model') || 'openai/gpt-oss-20b'; },
+      set model(v){ localStorage.setItem('groq_model', v || 'openai/gpt-oss-20b'); },
+      get jsonMode(){ return localStorage.getItem('groq_json_mode') === '1'; },
+      set jsonMode(on){ localStorage.setItem('groq_json_mode', on ? '1':'0'); },
+      get reasoningFormat(){ return localStorage.getItem('groq_reasoning_format') || ''; },
+      set reasoningFormat(v){ localStorage.setItem('groq_reasoning_format', v || ''); },
+      get reasoningEffort(){ return localStorage.getItem('groq_reasoning_effort') || 'medium'; },
+      set reasoningEffort(v){ localStorage.setItem('groq_reasoning_effort', v || 'medium'); },
+      get preferDayViewMore(){ return localStorage.getItem('prefer_day_view_more') === '1'; },
+      set preferDayViewMore(on){ localStorage.setItem('prefer_day_view_more', on ? '1':'0'); },
     };
 
     const STORE = {
@@ -598,6 +1114,35 @@
     };
     const ROLE_ORDER = ['LIB','CAM','CRU','CER','TUR','NAV','MIC'];
 
+    // Sinônimos para papéis (para reconhecimento flexível)
+    const ROLE_SYNONYMS = {
+      'librífero': 'LIB', 'lib': 'LIB', 'livro': 'LIB',
+      'campanário': 'CAM', 'cam': 'CAM', 'campana': 'CAM', 'campanista': 'CAM',
+      'cruciferário': 'CRU', 'cru': 'CRU', 'cruz': 'CRU', 'crucifixo': 'CRU',
+      'ceroferário': 'CER', 'cer': 'CER', 'vela': 'CER', 'cero': 'CER',
+      'turiferário': 'TUR', 'tur': 'TUR', 'incenso': 'TUR', 'turíbulo': 'TUR',
+      'naveteiro': 'NAV', 'nav': 'NAV', 'naveta': 'NAV',
+      'microfonário': 'MIC', 'mic': 'MIC', 'microfone': 'MIC', 'micro': 'MIC'
+    };
+
+    // Lista de acólitos disponíveis (exemplo; pode ser editada)
+    const ROSTER = [
+      'João Silva', 'Maria Santos', 'Pedro Oliveira', 'Ana Costa', 'Lucas Pereira',
+      'Sofia Almeida', 'Mateus Ferreira', 'Isabela Rodrigues', 'Gabriel Carvalho', 'Laura Martins'
+    ];
+
+    // Função para preencher acólitos aleatoriamente
+    function fillRandomAcolytes(roles = ['LIB', 'CAM', 'CRU']) {
+      const assigned = {};
+      const available = [...ROSTER];
+      roles.forEach(role => {
+        if (available.length === 0) return;
+        const randomIndex = Math.floor(Math.random() * available.length);
+        assigned[role] = available.splice(randomIndex, 1)[0];
+      });
+      return assigned;
+    }
+
     function stripAccents(str){
       return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     }
@@ -608,6 +1153,9 @@
       if (!raw) return '';
       const cleaned = stripAccents(raw).toUpperCase().replace(/[^A-Z]/g, '');
       if (ACOLYTE_ROLES[cleaned]) return cleaned;
+      // Verificar sinônimos
+      const synonym = ROLE_SYNONYMS[stripAccents(raw).toLowerCase()];
+      if (synonym && ACOLYTE_ROLES[synonym]) return synonym;
       for (const [key, meta] of Object.entries(ACOLYTE_ROLES)){
         const aliases = meta.aliases || [];
         const labelNormalized = stripAccents(meta.label).toUpperCase().replace(/[^A-Z]/g, '');
@@ -717,6 +1265,8 @@
     function showToast(msg, kind='ok'){
       toast.textContent = msg;
       toast.classList.toggle('err', kind!=='ok');
+      // se o modal está aberto, garanta z-index maior que o modal
+      toast.style.zIndex = (optionsModal && optionsModal.classList.contains('open')) ? 2001 : 20;
       toast.style.display = 'block';
       setTimeout(()=> toast.style.display='none', 3600);
     }
@@ -729,9 +1279,28 @@
     let overlayTargetDayFrame = null;
     let overlayCleanupAutoUpdate = null;
     document.addEventListener('DOMContentLoaded', () => {
+      // persistência de opções
+      apiKeyEl.addEventListener('input', () => { SETTINGS.apiKey = apiKeyEl.value.trim(); });
+      modelEl.addEventListener('change', () => {
+        SETTINGS.model = modelEl.value;
+        // Desabilitar Reasoning Format se modelo for GPT-OSS
+        const isGptOss = /^openai\/gpt-oss-/i.test(modelEl.value);
+        reasoningFormatEl.disabled = isGptOss;
+        reasoningFormatEl.title = isGptOss ? 'Não aplicável aos modelos GPT-OSS (use Mostrar raciocínio)' : '';
+      });
+      reasoningFormatEl.addEventListener('change', () => { SETTINGS.reasoningFormat = reasoningFormatEl.value; });
+      reasoningEffortEl.addEventListener('change', () => { SETTINGS.reasoningEffort = reasoningEffortEl.value || 'medium'; });
+      jsonModeEl.addEventListener('change', () => { SETTINGS.jsonMode = !!jsonModeEl.checked; });
+      preferDayViewMoreEl.addEventListener('change', () => { SETTINGS.preferDayViewMore = !!preferDayViewMoreEl.checked; });
+
+      bootThemeControls();
       // Restaurar preferências
       apiKeyEl.value = SETTINGS.apiKey;
       modelEl.value = SETTINGS.model;
+      reasoningFormatEl.value = SETTINGS.reasoningFormat;
+      reasoningEffortEl.value = SETTINGS.reasoningEffort;
+      jsonModeEl.checked = SETTINGS.jsonMode;
+      preferDayViewMoreEl.checked = SETTINGS.preferDayViewMore;
 
       // Auto-resize do textarea
       const autosize = () => {
@@ -778,8 +1347,9 @@
       });
       calendar.render();
       
-      // Reaplique o hook que intercepta o clique antes do FC
       hijackMoreLinkClicks();
+      
+      calendarEl.addEventListener('scroll', closeDayOverlay, { passive: true });
       
       clearEventDetails();
 
@@ -809,18 +1379,54 @@
       }
 
       // Mensagem inicial
-      pushBot(
-`Olá! Sou o **${AGENT_NAME}**, seu agente de agenda litúrgica. Pode escrever normalmente e eu:
-1) respondo em texto claro;
-2) gero ações de calendário quando necessário;
-3) mantenho nome da missa, local e a escala de acólitos (LIB, CAM, CRU, CER, TUR, NAV, MIC).`
-      );
+      pushBot(`Bem-vindo ao **${AGENT_NAME}**. Escreva como você falaria:
+• "Dom 19:30 — Missa na Matriz. LIB: João; CRU: Ana"
+Eu crio/edito/movo e organizo a escala litúrgica (LIB, CAM, CRU, CER, TUR, NAV, MIC).`);
 
       if (dayOverlayCloseBtn){
         dayOverlayCloseBtn.addEventListener('click', closeDayOverlay);
       }
       document.addEventListener('click', handleDocumentClick);
       document.addEventListener('keydown', handleDocumentKeydown);
+
+      // Listeners para modal de evento
+      if (closeEventModalBtn){
+        closeEventModalBtn.addEventListener('click', closeEventModal);
+      }
+      if (saveEventBtn){
+        saveEventBtn.addEventListener('click', saveEventFromModal);
+      }
+      if (cancelEventBtn){
+        cancelEventBtn.addEventListener('click', closeEventModal);
+      }
+      eventModal.addEventListener('click', (e) => {
+        if (e.target === eventModal) closeEventModal();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && eventModal.classList.contains('open')) closeEventModal();
+      });
+
+      // Adicionar listeners para botões do chat e modal
+      sendBtn.addEventListener('click', onSend);
+      inputEl.addEventListener('keydown', (e)=>{
+        if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onSend(); }
+      });
+      revealBtn.addEventListener('click', ()=>{
+        const isPwd = apiKeyEl.type === 'password';
+        apiKeyEl.type = isPwd ? 'text' : 'password';
+        revealBtn.setAttribute('aria-pressed', String(isPwd));
+      });
+      clearChatBtn.addEventListener('click', ()=>{
+        messagesEl.innerHTML = '';
+        session = SESS.create(); history = session.history;
+        showToast('Chat limpo.');
+      });
+      testBtn.addEventListener('click', async ()=>{
+        testBtn.disabled = true; const old = testBtn.textContent; testBtn.textContent = 'Testando…';
+        try { await testGroqKey(); showToast('Chave OK.'); }
+        catch(err){ showToast('Falha: '+err.message, 'err'); }
+        finally { testBtn.disabled = false; testBtn.textContent = old; }
+      });
     });
 
     function isSameDay(a, b){
@@ -842,30 +1448,41 @@
       const payload = { ...(evt || {}) };
       if (!payload.end && payload.start) {
         const baseStart = payload.start instanceof Date ? new Date(payload.start) : new Date(payload.start);
-        const mins = Number(payload.durationMin || payload.durationMinutes || 60) || 60;
+        const mins = Number(payload.durationMinutes || 60) || 60;
         const end = new Date(baseStart.getTime());
         end.setMinutes(end.getMinutes() + mins);
         payload.end = end;
       }
       const prepared = prepareEventInput(payload);
-      const created = calendar.addEvent(prepared);
-      saveEvents();
-      return created;
+      try {
+        const created = calendar.addEvent(prepared);
+        saveEvents();
+        return created;
+      } catch (err) {
+        console.error('Erro ao adicionar evento:', err);
+        showToast('Erro ao adicionar evento.', 'err');
+        return null;
+      }
     }
 
 
     function prepareStoredEvent(evt){
+      const toIso = d => d ? new Date(d).toISOString() : null;
       return prepareEventInput(evt || {});
     }
 
     function prepareEventInput(evt){
       const base = { ...(evt || {}) };
       if (!base.id) base.id = generateEventId();
-      if (base.start && !(base.start instanceof Date)) base.start = new Date(base.start);
-      if (base.end && !(base.end instanceof Date)) base.end = new Date(base.end);
+      if (typeof base.start === 'string') base.start = new Date(base.start);
+      if (typeof base.end === 'string' && base.end) base.end = new Date(base.end);
       const extended = { ...(base.extendedProps || {}) };
       if (base.location && extended.location === undefined) extended.location = base.location;
       if (base.description && extended.description === undefined) extended.description = base.description;
+      if (base.rrule && extended.rrule === undefined) extended.rrule = base.rrule;
+      if (base.duration && extended.duration === undefined) extended.duration = base.duration;
+      if (base.startTime && extended.startTime === undefined) extended.startTime = base.startTime;
+      if (base.exdate && extended.exdate === undefined) extended.exdate = base.exdate;
       extended.acolytes = normalizeAcolytes(extended.acolytes || base.acolytes);
       base.extendedProps = extended;
       return base;
@@ -900,6 +1517,8 @@
         card.appendChild(metaEl);
       }
 
+      card.style.borderLeft = '4px solid var(--accent)';
+
       return { domNodes: [card] };
     }
 
@@ -927,7 +1546,7 @@
     function formatEventTimeShort(event){
       if (!event || !event.start) return '';
       if (event.allDay) return 'Dia inteiro';
-      const fmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const fmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
       const start = event.start;
       const end = event.end;
       if (!end || start.getTime() === end.getTime()) return fmt.format(start);
@@ -937,15 +1556,15 @@
 
     function formatWeekdayDayMonth(date){
       if (!date) return '';
-      const weekday = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' }).format(date);
-      const day = new Intl.DateTimeFormat('pt-BR', { day: '2-digit' }).format(date);
-      const month = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(date);
+      const weekday = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', timeZone: TZ }).format(date);
+      const day = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', timeZone: TZ }).format(date);
+      const month = new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: TZ }).format(date);
       return `${weekday}, ${day} de ${month}`;
     }
 
     function formatEventDateRange(event){
       if (!event || !event.start) return '';
-      const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
       const start = event.start;
       const end = event.end;
       const startLabel = formatWeekdayDayMonth(start);
@@ -966,6 +1585,22 @@
     function formatActionsCount(count){
       if (!count) return '';
       return formatCountPt(count, 'ação', 'ações');
+    }
+
+    function formatDateTimeInput(date){
+      if (!date) return '';
+      const d = new Date(date);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    function parseDateTimeInput(str){
+      if (!str) return null;
+      return new Date(str);
     }
 
     function closeDayOverlay(){
@@ -1007,6 +1642,14 @@
       const root = calendarEl;
 
       const openFromLink = (ev, link) => {
+        if (SETTINGS.preferDayViewMore) {
+          const dayEl = link.closest('.fc-daygrid-day');
+          const dateStr = dayEl?.getAttribute('data-date');
+          if (dateStr) {
+            calendar.changeView('timeGridDay', dateStr);
+            return;
+          }
+        }
         // fallback mobile: abre a view de dia
         if (window.innerWidth < 640) {
           const dayEl = link.closest('.fc-daygrid-day');
@@ -1088,17 +1731,13 @@
 
     function openDayOverlay(info){
       if (!dayOverlayEl || !calendarEl) return;
-      const eventsMap = new Map();
-      (info.segs || []).forEach(seg => {
-        if (seg && seg.event && !eventsMap.has(seg.event.id)){
-          eventsMap.set(seg.event.id, seg.event);
-        }
-      });
-      const events = Array.from(eventsMap.values()).sort((a, b) => {
-        const startA = a.start ? a.start.getTime() : 0;
-        const startB = b.start ? b.start.getTime() : 0;
-        return startA - startB;
-      });
+      const events = (info.segs && info.segs.length
+        ? info.segs.map(s => s.event)
+        : (info.segs || [])
+      ).filter(Boolean).reduce((acc, ev) => {
+        if (!acc.some(e => e.id === ev.id)) acc.push(ev);
+        return acc;
+      }, []).sort((a,b) => (a.start?.getTime()||0) - (b.start?.getTime()||0));
       if (!events.length){
         closeDayOverlay();
         return;
@@ -1178,6 +1817,10 @@
       // Foco no botão fechar (acessibilidade)
       dayOverlayCloseBtn?.focus();
     }
+
+    window.addEventListener('beforeunload', () => {
+      if (overlayCleanupAutoUpdate) overlayCleanupAutoUpdate();
+    });
 
     function populateAcolyteDetails(acolytes){
       if (!detailAcolytesEl) return;
@@ -1259,92 +1902,168 @@
       updateEventSelection();
     }
 
-    function formatDateTimeInput(date){
-      if (!date) return '';
-      const pad = (n) => String(n).padStart(2, '0');
-      return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    function openEventModal(event = null, selInfo = null){
+      if (!eventModal) return;
+      const isEdit = !!event;
+      eventModalTitle.textContent = isEdit ? 'Editar Missa' : 'Criar Missa';
+      if (isEdit){
+        eventTitleEl.value = event.title || '';
+        eventStartEl.value = event.start ? formatDateTimeInput(event.start) : '';
+        eventEndEl.value = event.end ? formatDateTimeInput(event.end) : '';
+        eventDurationEl.value = '';
+        eventLocationEl.value = event.extendedProps?.location || '';
+        eventDescriptionEl.value = event.extendedProps?.description || '';
+        eventAcolytesEl.value = formatAcolytePrompt(normalizeAcolytes(event.extendedProps?.acolytes));
+        eventRruleEl.value = event.extendedProps?.rrule || '';
+      } else if (selInfo){
+        eventTitleEl.value = '';
+        eventStartEl.value = selInfo.start ? formatDateTimeInput(selInfo.start) : '';
+        eventEndEl.value = selInfo.end ? formatDateTimeInput(selInfo.end) : '';
+        eventDurationEl.value = '60';
+        eventLocationEl.value = '';
+        eventDescriptionEl.value = '';
+        eventAcolytesEl.value = '';
+        eventRruleEl.value = '';
+      } else {
+        eventTitleEl.value = '';
+        eventStartEl.value = '';
+        eventEndEl.value = '';
+        eventDurationEl.value = '60';
+        eventLocationEl.value = '';
+        eventDescriptionEl.value = '';
+        eventAcolytesEl.value = '';
+        eventRruleEl.value = '';
+      }
+      eventModal.hidden = false;
+      eventModal.classList.add('open');
+      eventModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      eventTitleEl.focus();
+      eventModal.dataset.mode = isEdit ? 'edit' : 'create';
+      eventModal.dataset.eventId = isEdit ? event.id : '';
+      eventModal.dataset.selInfo = JSON.stringify(selInfo || {});
     }
 
-    function parseDateTimeInput(value){
-      if (!value) return null;
-      const trimmed = String(value).trim();
-      if (!trimmed) return null;
-      const match = trimmed.replace('T', ' ').match(/^(\d{4})[-/](\d{2})[-/](\d{2})(?:\s+(\d{2}):(\d{2}))?$/);
-      if (!match) return null;
-      const [, y, m, d, hh = '00', mm = '00'] = match;
-      return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm));
+    function closeEventModal(){
+      if (!eventModal) return;
+      eventModal.classList.remove('open');
+      eventModal.setAttribute('aria-hidden', 'true');
+      eventModal.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    function saveEventFromModal(){
+      const mode = eventModal.dataset.mode;
+      const eventId = eventModal.dataset.eventId;
+      const selInfoStr = eventModal.dataset.selInfo;
+      const selInfo = selInfoStr ? JSON.parse(selInfoStr) : null;
+
+      const title = eventTitleEl.value.trim();
+      if (!title){
+        showToast('Informe o título da missa.', 'err');
+        return;
+      }
+      const startStr = eventStartEl.value;
+      const endStr = eventEndEl.value;
+      const durationStr = eventDurationEl.value;
+      const location = eventLocationEl.value.trim();
+      const description = eventDescriptionEl.value.trim();
+      const acolytesStr = eventAcolytesEl.value.trim();
+      const rrule = eventRruleEl.value.trim();
+
+      let start = startStr ? parseDateTimeInput(startStr) : null;
+      let end = endStr ? parseDateTimeInput(endStr) : null;
+      const duration = durationStr ? parseInt(durationStr, 10) : 60;
+
+      if (mode === 'create'){
+        if (rrule){
+          // Recorrente
+          const evt = {
+            title,
+            rrule,
+            duration: `PT${duration}M`,
+            extendedProps: {
+              location,
+              description,
+              acolytes: normalizeAcolytes(acolytesStr),
+              rrule,
+              duration: `PT${duration}M`
+            }
+          };
+          if (startStr){ // usa o horário do campo "Início"
+            const d = parseDateTimeInput(startStr);
+            const hh = String(d.getHours()).padStart(2,'0');
+            const mm = String(d.getMinutes()).padStart(2,'0');
+            evt.startTime = `${hh}:${mm}:00`;
+            evt.extendedProps.startTime = evt.startTime;
+          }
+          try {
+            const created = calendar.addEvent(prepareEventInput(evt));
+            saveEvents();
+            showToast('Missa recorrente criada.');
+          } catch (err) {
+            console.error('Erro ao criar missa recorrente:', err);
+            showToast('Erro ao criar missa recorrente.', 'err');
+          }
+          closeEventModal();
+        } else {
+          // Simples
+          if (!start){
+            showToast('Informe a data/hora de início.', 'err');
+            return;
+          }
+          if (!end){
+            end = new Date(start.getTime() + duration * 60000);
+          }
+          const created = addEvent({
+            title,
+            start,
+            end,
+            extendedProps: {
+              location,
+              description,
+              acolytes: normalizeAcolytes(acolytesStr)
+            }
+          });
+          if (created){
+            selectedEvent = created;
+            selectedEventId = created.id;
+            showEventDetails(created);
+          }
+          showToast('Missa criada.');
+          closeEventModal();
+        }
+      } else if (mode === 'edit'){
+        const event = calendar.getEventById(eventId);
+        if (!event){
+          showToast('Evento não encontrado.', 'err');
+          return;
+        }
+        event.setProp('title', title);
+        if (start) event.setStart(start);
+        if (end) event.setEnd(end);
+        event.setExtendedProp('location', location);
+        event.setExtendedProp('description', description);
+        event.setExtendedProp('acolytes', normalizeAcolytes(acolytesStr));
+        if (rrule) event.setExtendedProp('rrule', rrule);
+        saveEvents();
+        showEventDetails(event);
+        showToast('Missa atualizada.');
+        closeEventModal();
+      }
     }
 
     function openEventCreator(selInfo){
-      const title = prompt('Nome da missa:', '');
-      if (title === null) return;
-      const trimmedTitle = title.trim();
-      if (!trimmedTitle){
-        showToast('Criação cancelada: informe o nome da missa.', 'err');
-        return;
-      }
-      const location = prompt('Local da missa:', '');
-      if (location === null) return;
-      const description = prompt('Observações adicionais:', '');
-      if (description === null) return;
-      const acolyteInput = prompt('Escala de acólitos (ex.: LIB: João, CAM: Maria):', '');
-      if (acolyteInput === null) return;
-
-      const created = addEvent({
-        title: trimmedTitle,
-        start: selInfo.start,
-        end: selInfo.end,
-        allDay: selInfo.allDay,
-        extendedProps: {
-          location: location.trim(),
-          description: description.trim(),
-          acolytes: normalizeAcolytes(acolyteInput)
-        }
-      });
-      if (created){
-        selectedEvent = created;
-        selectedEventId = created.id;
-        showEventDetails(created);
-        showToast('Missa criada no calendário.');
-      }
+      openEventModal(null, selInfo);
     }
 
     function openEventEditor(event){
       if (!event) return;
-      const title = prompt('Nome da missa:', event.title || '');
-      if (title === null) return;
-      const startInput = prompt('Início (AAAA-MM-DD HH:MM):', formatDateTimeInput(event.start));
-      if (startInput === null) return;
-      const endInput = prompt('Fim (AAAA-MM-DD HH:MM):', formatDateTimeInput(event.end));
-      if (endInput === null) return;
-      const location = prompt('Local da missa:', event.extendedProps?.location || '');
-      if (location === null) return;
-      const description = prompt('Observações adicionais:', event.extendedProps?.description || '');
-      if (description === null) return;
-      const acolyteInput = prompt('Escala de acólitos (ex.: LIB: João, CAM: Maria):', formatAcolytePrompt(normalizeAcolytes(event.extendedProps?.acolytes)));
-      if (acolyteInput === null) return;
-
-      const trimmedTitle = title.trim() || 'Missa';
-      let startDate = parseDateTimeInput(startInput) || event.start;
-      let endDate = endInput.trim() ? parseDateTimeInput(endInput) : null;
-      if (!endDate && event.end && startDate){
-        const duration = event.end.getTime() - event.start.getTime();
-        if (duration > 0) endDate = new Date(startDate.getTime() + duration);
-      }
-
-      event.setProp('title', trimmedTitle);
-      if (startDate) event.setStart(startDate);
-      if (endDate) event.setEnd(endDate);
-      if (!endDate && !endInput.trim()) event.setEnd(null);
-      event.setExtendedProp('location', location.trim());
-      event.setExtendedProp('description', description.trim());
-      event.setExtendedProp('acolytes', normalizeAcolytes(acolyteInput));
-      saveEvents();
-      showEventDetails(event);
-      showToast('Evento atualizado.');
+      openEventModal(event);
     }
 
     function saveEvents(){
+      const toIso = d => d ? new Date(d).toISOString() : null;
       const arr = calendar.getEvents().map(e => {
         const base = {
           id: e.id,
@@ -1355,25 +2074,98 @@
             acolytes: normalizeAcolytes(e.extendedProps?.acolytes)
           }
         };
-        const defs = e._def || {};
-        const rrule = defs.recurringDef?.typeData?.rruleStr || defs.recurringDef?.typeData?.rrule;
-        if (rrule){
-          base.rrule = defs.recurringDef.typeData.rrule || defs.recurringDef.typeData.rruleStr;
-          base.duration = defs.recurringDef.typeData.duration || e.extendedProps?.duration;
+        if (e.extendedProps?.rrule){
+          base.rrule = e.extendedProps.rrule;
+          base.duration = e.extendedProps.duration;
+          if (e.extendedProps.startTime) base.startTime = e.extendedProps.startTime;
+          if (e.extendedProps.exdate) base.exdate = e.extendedProps.exdate; // <— NOVO
         } else {
-          base.start = e.start;
-          base.end = e.end;
+          base.start = toIso(e.start);
+          base.end = toIso(e.end);
         }
         return base;
       });
       STORE.events = arr;
     }
 
+    // ======= Tema litúrgico =======
+    function setSeason(key){
+      const map = {
+        green:  'var(--season-green)',
+        violet: 'var(--season-violet)',
+        white:  'var(--season-white)',
+        red:    'var(--season-red)',
+        rose:   'var(--season-rose)',
+        black:  'var(--season-black)'
+      };
+      document.documentElement.style.setProperty('--accent', map[key] || 'var(--season-green)');
+      localStorage.setItem('missal.season', key);
+      // ligeiro ajuste de "pergaminho" para o modo preto
+      const parchment = key === 'black' ? '#fbfbfb' : '#fffdf7';
+      document.documentElement.style.setProperty('--parchment', parchment);
+    }
+
+    function bootThemeControls(){
+      const seasonSel = document.getElementById('season');
+      const contrastBtn = document.getElementById('contrast');
+
+      if (seasonSel){
+        const saved = localStorage.getItem('missal.season') || 'green';
+        seasonSel.value = saved; setSeason(saved);
+        seasonSel.addEventListener('change', e => setSeason(e.target.value));
+      }
+      if (contrastBtn){
+        const high = localStorage.getItem('missal.contrast') === '1';
+        if (high) document.body.classList.add('alto-contraste');
+        contrastBtn.textContent = high ? 'Contraste normal' : 'Alto contraste';
+        contrastBtn.addEventListener('click', () => {
+          document.body.classList.toggle('alto-contraste');
+          const on = document.body.classList.contains('alto-contraste');
+          contrastBtn.textContent = on ? 'Contraste normal' : 'Alto contraste';
+          localStorage.setItem('missal.contrast', on ? '1' : '0');
+        });
+      }
+    }
+
+    // ======= Sessões de chat =======
+    const SESS = {
+      get all(){ return JSON.parse(localStorage.getItem('sessions_v1')||'[]'); },
+      set all(v){ localStorage.setItem('sessions_v1', JSON.stringify(v)); },
+      create(){ const id = crypto.randomUUID(); const now = Date.now();
+        const s = { id, title: 'Nova conversa', createdAt: now, updatedAt: now, history: [ { role:'system', content: SYSTEM_PROMPT } ] };
+        const all = this.all; all.unshift(s); this.all = all; return s;
+      },
+      save(sess){ const all = this.all; const i = all.findIndex(x => x.id===sess.id);
+        if (i>=0) all[i]=sess; else all.unshift(sess); this.all = all;
+      },
+      get(id){ return this.all.find(x => x.id===id); }
+    };
+
+    function approxTokens(str){ return Math.ceil((str||'').length / 4); }
+    function pruneHistory(base, maxTokens = 6000){
+      const out = [];
+      let total = 0;
+      for (let i=base.length-1;i>=0;i--){
+        const chunk = JSON.stringify(base[i]);
+        const t = approxTokens(chunk);
+        if (total + t > maxTokens) break;
+        out.unshift(base[i]); total += t;
+      }
+      // mantenha sempre o system no topo
+      if (out[0]?.role !== 'system') out.unshift(base.find(m => m.role==='system') || { role:'system', content:SYSTEM_PROMPT });
+      return out;
+    }
+
     // ======= Chat UI =======
+    let session = SESS.all[0] || SESS.create();
+    let history = session.history;
     function pushUser(text){
       const wrap = document.createElement('div');
       wrap.className = 'bubble user';
-      wrap.innerHTML = `<div class="meta">Você • ${new Date().toLocaleString('pt-BR')}</div>${escapeHtml(text)}`;
+      // Primeira mensagem do usuário ganha capitular (opcional): add "dropcap"
+      const markup = missalMarkup(text);
+      const firstParaCap = markup.replace('<p class="proclamation">','<p class="proclamation dropcap">');
+      wrap.innerHTML = `<div class="meta">Você • ${new Date().toLocaleString('pt-BR')}</div>${firstParaCap}`;
       messagesEl.appendChild(wrap);
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
@@ -1436,97 +2228,247 @@
     function pushBot(visibleText, opts={}){
       const wrap = document.createElement('div');
       wrap.className = 'bubble bot';
-      let html = `<div class="meta">${AGENT_NAME} • ${new Date().toLocaleString('pt-BR')}</div>${mdToHtml(visibleText || '')}`;
-      wrap.innerHTML = html;
-
-      if (opts.details) {
-        wrap.appendChild(makeDetails(opts.details));
-      }
-
+      const body = missalMarkup(visibleText || '');
+      wrap.innerHTML = `<div class="meta">${AGENT_NAME} • ${new Date().toLocaleString('pt-BR')}</div>${body}`;
+      if (opts.details) wrap.appendChild(makeDetails(opts.details));
       messagesEl.appendChild(wrap);
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    // ======= Chamada Perplexity =======
-    const SYSTEM_PROMPT = `
-Você é o **Agente de Agenda da Paróquia**. Sua missão é administrar o calendário interno de missas, atuando como assistente confiável para o sacristão.
+    function createBotStreamBubble(){
+      const wrap = document.createElement('div');
+      wrap.className = 'bubble bot is-typing';
+      wrap.innerHTML = (`
+        <div class="meta">${AGENT_NAME} • ${new Date().toLocaleString('pt-BR')}</div>
+        <div class="typing-line">
+          <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
+        </div>
+      `).trim();
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
 
-### Objetivo central
-- Controlar o calendário interno de missas, respeitando horários, locais e escala de acólitos.
+      const updateVisible = (text) => {
+        const body = missalMarkup(text || '');
+        wrap.classList.remove('is-typing');
+        const details = wrap.querySelector('details');
+        wrap.innerHTML = `<div class="meta">${AGENT_NAME} • ${new Date().toLocaleString('pt-BR')}</div>${body}`;
+        if (details) wrap.appendChild(details); // preserva se já existir
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      };
 
-### Saída (contrato rígido)
-1) **Primeiro**, escreva uma mensagem curta, clara e humana (sem JSON embutido).
-2) **Depois**, se houver ações, emita **um ou mais blocos** \`\`\`json ... \`\`\` contendo SOMENTE ações:
-   - Um bloco por ação. Não use arrays para múltiplas ações; escreva vários blocos.
-   - Não inclua comentários nem explicações dentro dos JSONs.
-3) Para **agenda**, use o objeto **{"schedule": {...}}**.
-4) Para **consultar disponibilidade**, use **{"availability": {...}}**.
-5) Não produza blocos JSON se nenhuma ação for necessária.
+      const attachDetails = ({raw, actions, sources}) => {
+        const d = makeDetails({ raw, actions, sources });
+        wrap.appendChild(d);
+      };
 
-### Agenda de missas
-- Para criar uma missa use {"schedule":{"action":"create", ...}} com os campos obrigatórios: title, start, end.
-- Inclua location sempre que o usuário especificar o local.
-- Transfira observações relevantes para description quando existirem.
-- Sempre que o usuário fornecer escala/funções de acólitos, inclua acolytes com uma lista de objetos { "role": "LIB", "name": "Fábio" }.
-- Se o usuário não citar acólitos, omita o campo acolytes (ou envie acolytes: [] para indicar remoção).
-- Converta nomes de funções para os códigos canônicos (LIB, CAM, CRU, CER, TUR, NAV, MIC), mesmo que o usuário escreva variações ou grafias diferentes.
-- Ao atualizar (action:"update"), só envie campos que realmente precisam mudar. Preserve título, local, descrição e escala existentes quando não houver instrução explícita.
-- Para remover toda a escala de uma missa, envie acolytes: [] no update.
-- Ao mover (action:"move"), mantenha o restante dos dados intacto.
-- Só utilize action:"delete" quando o usuário pedir exclusão explícita.
+      const injectActionProgress = () => {
+        let bar = wrap.querySelector('.action-progress');
+        if (!bar){
+          bar = document.createElement('div');
+          bar.className = 'action-progress';
+          bar.innerHTML = `
+            <div class="action-progress-head">Executando ações…</div>
+            <div class="action-progress-bar"><div class="fill"></div></div>
+          `;
+          wrap.appendChild(bar);
+        }
+        return {
+          tick: (p) => { bar.querySelector('.fill').style.width = `${Math.max(0,Math.min(100,p))}%`; },
+          done: () => { bar.classList.add('done'); }
+        };
+      };
 
-### Escala de acólitos
-- Códigos aceitos: LIB (Librífero), CAM (Campanário), CRU (Cruciferário), CER (Ceroferário), TUR (Turiferário), NAV (Naveteiro), MIC (Microfonário).
-- Aceite sinônimos e flexões (ex.: "librífero", "campanário", "microfonista", etc.) convertendo para o código correto.
-- Sempre relacione cada código a um nome.
+      return { el: wrap, updateVisible, attachDetails, injectActionProgress };
+    }
 
-### Regras gerais
-- Calendário **interno**; **NÃO** mencione Google Calendar/iCloud/Outlook.
-- Timezone padrão: **America/Sao_Paulo**. Interprete datas relativas nesse fuso.
-- Se o usuário não informar duração, assuma **60 minutos**.
-- Para pedidos vagos, peça esclarecimentos antes de agir.
-- Quando resumir o que fez, cite missa, local e escala de acólitos confirmada.
+    // ======= Chamada Groq =======
 
-### Ações suportadas (exemplos)
-{"schedule":{"action":"create","title":"Missa no Divino","start":"2025-09-27T19:30:00-03:00","end":"2025-09-27T20:30:00-03:00","location":"Igreja do Divino","acolytes":[{"role":"LIB","name":"Fábio"},{"role":"CER","name":"Eloá"}]}}
-{"schedule":{"action":"update","title":"Missa do Terço","start":"2025-09-28T18:00:00-03:00","end":"2025-09-28T19:00:00-03:00","acolytes":[{"role":"CRU","name":"Rafael"},{"role":"NAV","name":"Bruna"}]}}
-{"schedule":{"action":"move","title":"Missa do Domingo","deltaMinutes":30}}
-{"schedule":{"action":"delete","title":"Missa das 7h"}}
-{"availability":{"durationMinutes":45,"windowStart":"2025-09-27T08:00:00-03:00","windowEnd":"2025-09-27T20:00:00-03:00","count":3}}
-
-### Formato
-- Datas em ISO-8601 com timezone. Durações podem ser ISO 8601 ("PT30M") ou minutos.
-- **Nunca** escreva JSON em listas ou parágrafos; sempre use bloco \`\`\`json.
-- Se nada for agendado/alterado, **não** escreva blocos JSON.
-
-Responda **sempre em português**, de forma objetiva e confirmatória.
-`.trim();
-
-
-    let history = [ { role: "system", content: SYSTEM_PROMPT } ];
-
-    async function callPerplexity(userText){
+    async function testGroqKey() {
       const key = (apiKeyEl.value || '').trim();
-      if (!key){ showToast('Cole sua chave da Perplexity no topo.', 'err'); throw new Error('Chave ausente'); }
-      const model = modelEl.value || 'sonar';
+      if (!key) throw new Error('Chave ausente');
+      const model = modelEl.value || 'openai/gpt-oss-20b';
+
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: 'ping' }],
+          max_tokens: 1
+        })
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(`Erro API (${resp.status}): ${txt}`);
+      }
+    }
+
+    // ======= Chamada Groq =======
+    let inflight;
+    async function streamCallGroq({ onDelta, onFence, onDone }) {
+      if (inflight) inflight.abort();
+      inflight = new AbortController();
+
+      const key = (apiKeyEl.value || '').trim();
+      if (!key){ showToast('Cole sua chave da Groq no topo.', 'err'); throw new Error('Chave ausente'); }
+      const model = modelEl.value || 'openai/gpt-oss-20b';
+      const reasoningFormat = SETTINGS.reasoningFormat;
+      const reasoningEffort = SETTINGS.reasoningEffort;
+      const jsonMode = SETTINGS.jsonMode;
 
       const body = {
         model,
-        messages: [...history, { role: "user", content: userText }],
-        temperature: 0.2
+        messages: pruneHistory(history),
+        temperature: 0.2,
+        stream: true
       };
 
-      const resp = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+      const isGptOss = /^openai\/gpt-oss-/i.test(model);
+      // JSON mode: deixe desmarcado por padrão (senão você perde o texto + cercas)
+      if (jsonMode) body.response_format = { type: 'json_object' };
+      // Reasoning Effort: suportado por GPT-OSS (low|medium|high)
+      if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+      // Reasoning format: NÃO envie para GPT-OSS
+      if (!isGptOss && reasoningFormat) {
+        body.reasoning_format = reasoningFormat; // p.ex. qwen-qwq-32b
+      }
+      // Para GPT-OSS, use include_reasoning conforme a UI
+      if (isGptOss) {
+        // mapeie "(padrão|parsed)" => include_reasoning:true; "hidden" => false
+        if (reasoningFormat === 'hidden') body.include_reasoning = false;
+        else if (reasoningFormat === 'parsed' || reasoningFormat === '') body.include_reasoning = true;
+      }
 
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream'  // <- ajuda alguns proxies/navegadores
+        },
+        body: JSON.stringify(body),
+        signal: inflight.signal
+      });
       if (!resp.ok){
         const txt = await resp.text();
         throw new Error(`Erro API (${resp.status}): ${txt}`);
       }
-      return resp.json();
+
+      const reader   = resp.body.getReader();
+      const decoder  = new TextDecoder('utf-8');
+      let sseBuffer  = '';
+      let fullVisible = '';
+      let rawAll     = '';
+      let sourcesCollected = []; // Groq não retorna sources, mas mantemos para compatibilidade
+
+      // buffers para cercas ```
+      let inFence = false, fenceLang = '', fenceBuffer = '';
+      
+      // Para evitar processar o mesmo JSON inline múltiplas vezes
+      const processedInlineJsons = new Set();
+
+      const flushVisible = () => onDelta?.(redactActionMentions(fullVisible));
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+
+        // divide por linha em branco, suportando CRLF/LF
+        const events = sseBuffer.split(/\r?\n\r?\n/);
+        sseBuffer = events.pop() || '';
+
+        for (const ev of events) {
+          // junta todas as linhas "data:" (SSE permite várias)
+          const dataLines = ev.split(/\r?\n/)
+            .filter(line => line.startsWith('data:'))
+            .map(line => line.slice(5).trimStart());
+
+          if (!dataLines.length) continue;
+
+          const data = dataLines.join('\n');
+          if (data === '[DONE]') { try { reader.cancel(); } catch {} break; }
+
+          let payload;
+          try { payload = JSON.parse(data); } catch { continue; }
+
+          const delta = payload?.choices?.[0]?.delta?.content || '';
+          if (delta) {
+            rawAll += delta;
+
+            // detecta/fecha cercas ``` para capturar JSON de ações
+            for (let i = 0; i < delta.length; i++) {
+              if (delta.slice(i, i+3) === '```') {
+                if (!inFence) {
+                  inFence = true; fenceLang = '';
+                  const m = delta.slice(i+3).match(/^(\w+)?/);
+                  fenceLang = m && m[1] ? m[1].toLowerCase() : '';
+                } else {
+                  const tryFenceAsJson =
+                    !fenceLang || /^(json|jsonc)$/i.test(fenceLang);
+
+                  if (tryFenceAsJson) {
+                    const raw = fenceBuffer.trim();
+                    const parsed = tryParseJson(raw);
+                    if (parsed) {
+                      onFence?.(parsed);
+                    } else {
+                      // fallback: tenta achar {"schedule":{...}} por varredura
+                      extractInlineJsonByKey(raw, 'schedule').forEach(obj => onFence?.(obj));
+                    }
+                  }
+                  inFence = false; fenceLang = ''; fenceBuffer = '';
+                }
+                i += 2; // pula os ```
+                continue;
+              }
+              if (inFence) fenceBuffer += delta[i];
+              else fullVisible += delta[i];
+            }
+
+            // NOVO: Detectar JSON inline enquanto o texto está sendo construído
+            // Usa regex mais robusta que suporta objetos aninhados
+            const inlineJsonMatches = fullVisible.match(/\{"schedule":\{(?:[^{}]|\{[^}]*\})*\}\}/g);
+            if (inlineJsonMatches) {
+              inlineJsonMatches.forEach(jsonStr => {
+                if (!processedInlineJsons.has(jsonStr)) {
+                  processedInlineJsons.add(jsonStr);
+                  const parsed = tryParseJson(jsonStr);
+                  if (parsed && parsed.schedule) {
+                    console.log('🔥 Processing inline JSON during stream:', jsonStr);
+                    onFence?.(parsed);
+                  }
+                }
+              });
+            }
+
+            // ADICIONAL: Detectar qualquer JSON que tenha "action" na raiz
+            const actionJsonMatches = fullVisible.match(/\{"action":"[^"]+",?[^}]*\}/g);
+            if (actionJsonMatches) {
+              actionJsonMatches.forEach(jsonStr => {
+                if (!processedInlineJsons.has(jsonStr)) {
+                  processedInlineJsons.add(jsonStr);
+                  const parsed = tryParseJson(jsonStr);
+                  if (parsed && parsed.action) {
+                    console.log('🔥 Processing action JSON during stream:', jsonStr);
+                    onFence?.(parsed);
+                  }
+                }
+              });
+            }
+
+            flushVisible();
+          }
+
+          // Groq não retorna search_results, então sourcesCollected permanece vazio
+        }
+      }
+
+      onDone?.({ raw: rawAll, sources: sourcesCollected });
     }
 
     // ======= Parser de respostas =======
@@ -1568,75 +2510,570 @@ Responda **sempre em português**, de forma objetiva e confirmatória.
       }
       return results;
     }
+    function extractMessagesFrom(obj) {
+      if (obj && typeof obj === 'object' && obj.message) {
+        return String(obj.message).trim();
+      }
+      return null;
+    }
+    function extractTopLevelJson(raw) {
+      const lines = String(raw || '').split(/\r?\n/);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          const parsed = tryParseJson(trimmed);
+          if (parsed) return parsed;
+        }
+      }
+      return null;
+    }
     function splitVisibleFromActions(raw){
       const fences = extractJsonFences(raw);
       const parsedFromFences = fences.map(tryParseJson).filter(Boolean);
 
       let visible = raw.replace(/```(?:json|jsonc)?\s*([\s\S]*?)\s*```/gi, '').trim();
 
-      const inlineSchedules = extractInlineJsonByKey(visible, 'schedule');
-      const inlineAvail = extractInlineJsonByKey(visible, 'availability');
-
-      visible = visible
-        .replace(/\{[^{}]*"schedule"[^{}]*\{[\s\S]*?\}[\s\S]*?\}/g, '')
-        .replace(/\{[^{}]*"availability"[^{}]*\{[\s\S]*?\}[\s\S]*?\}/g, '')
-        .trim();
-
       const actions = { schedules: [], availability: [] };
-      const allParsed = [...parsedFromFences, ...inlineSchedules, ...inlineAvail];
-      allParsed.forEach(p => { if (Array.isArray(p)) p.forEach(x => collectAction(x, actions)); else collectAction(p, actions); });
+      parsedFromFences.forEach(p => collectAction(p, actions));
+
+      // NOVO: Detectar JSON inline (fora de cercas) - procura por chaves "schedule"
+      const inlineJsonSchedules = extractInlineJsonByKey(visible, 'schedule');
+      inlineJsonSchedules.forEach(obj => collectAction(obj, actions));
+
+      // NOVO: Detectar JSON inline com "action" na raiz 
+      const inlineJsonActions = extractInlineJsonByKey(visible, 'action');
+      inlineJsonActions.forEach(obj => collectAction(obj, actions));
+
+      // NOVO: Detectar JSON linha inteira (caso o AI retorne só JSON)
+      const topLevelJson = extractTopLevelJson(visible);
+      if (topLevelJson && (topLevelJson.schedule || topLevelJson.action)) {
+        collectAction(topLevelJson, actions);
+      }
+
+      // Remove JSON inline do texto visível (versão mais robusta)
+      visible = visible.replace(/\{"schedule":\{(?:[^{}]|\{[^}]*\})*\}\}/g, '').trim();
+      visible = visible.replace(/\{"action":"[^"]+",?[^}]*\}/g, '').trim();
+      visible = visible.replace(/^\{"[^"]*":\{.*\}\}$/gm, '').trim();
+
+      // Fallback: se não há texto visível, tenta extrair "message" dos objetos JSON
+      if (!visible) {
+        for (const obj of parsedFromFences) {
+          const msg = extractMessagesFrom(obj);
+          if (msg) {
+            visible = msg;
+            break;
+          }
+        }
+      }
 
       return { visibleText: visible, actions, raw };
     }
-    function collectAction(obj, actions){
-      if (!obj || typeof obj !== 'object') return;
-      if (obj.schedule) actions.schedules.push(obj);
-      if (obj.availability) actions.availability.push(obj.availability);
+    function flattenActions(input){
+      const acc = [];
+      const walk = (x) => {
+        if (!x) return;
+        if (Array.isArray(x)) { x.forEach(walk); return; }
+        if (x.schedules && Array.isArray(x.schedules)) { x.schedules.forEach(walk); return; }
+        if (x.schedule || x.action) { acc.push(x); return; }
+        // Se vier um objeto simples com campos de schedule na raiz (fallback)
+        if (x.rrule || x.start || x.title || x.deltaMinutes) { acc.push({ schedule: x }); return; }
+      };
+      walk(input);
+      return acc;
     }
+    function collectAction(obj, actions){
+      const items = flattenActions(obj);
+      for (const it of items){
+        const topAction = String(it.action || '').toLowerCase();
+        const looksLikeAction =
+          it.schedule && typeof it.schedule === 'object' ||
+          /^create_?mass(_schedule)?$/.test(topAction) ||
+          /^(update|delete|move|list)_?mass(es)?$/.test(topAction) ||
+          /^(update|move|delete)_occurrence$/.test(topAction);
+        if (looksLikeAction) {
+          // Verifica se já existe uma ação idêntica para evitar duplicatas na coleta
+          const actionKey = getActionKey(it);
+          const alreadyExists = actions.schedules.some(existing => getActionKey(existing) === actionKey);
+          if (!alreadyExists) {
+            actions.schedules.push(it);
+          }
+        }
+      }
+    }
+
+    // ======= Helpers para RRULE & impressão =======
+function getWeekdayCodeFromDate(d){
+  return ['SU','MO','TU','WE','TH','FR','SA'][d.getDay()];
+}
+function formatYmd(d){ return d.toISOString().slice(0,10); }
+function atTime(d, hhmm='19:30'){
+  const [hh,mm] = String(hhmm).split(':').map(n=>+n||0);
+  const z = new Date(d); z.setHours(hh, mm, 0, 0); return z;
+}
+function fmtHhmm(d){
+  return new Intl.DateTimeFormat('pt-BR', { hour:'2-digit', minute:'2-digit', timeZone: TZ }).format(d);
+}
+function fmtDdmmyy(d){
+  return new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit', timeZone: TZ }).format(d);
+}
+function fmtWeekdayDdmmy(d){
+  const wd = new Intl.DateTimeFormat('pt-BR', { weekday:'short', timeZone: TZ }).format(d);
+  return `${wd.replace('.','')}, ${new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',timeZone:TZ}).format(d)}`;
+}
+function parseDtstartFromRrule(rr){
+  const m = String(rr||'').match(/DTSTART=([^;]+)/i);
+  if (!m) return null;
+  const s = m[1].trim();
+  // aceita 'YYYY-MM-DDTHH:mm:ss' ou 'YYYYMMDDTHHmmss'
+  if (/^\d{8}T\d{6}Z?$/.test(s)){
+    const y = +s.slice(0,4), mo = +s.slice(4,6)-1, d = +s.slice(6,8), h = +s.slice(9,11), mi = +s.slice(11,13), se = +s.slice(13,15);
+    return new Date(y,mo,d,h,mi,se);
+  }
+  return new Date(s);
+}
+function deriveStartTime(s, rruleMaybe){
+  const pad2 = (n)=> String(n).padStart(2,'0');
+
+  const hhmm = (t)=>{
+    const m = String(t||'').match(/^(\d{1,2}):(\d{2})$/);
+    return m ? `${pad2(+m[1])}:${pad2(+m[2])}:00` : null;
+  };
+  const hhmmss = (t)=>{
+    const m = String(t||'').match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+    return m ? `${pad2(+m[1])}:${pad2(+m[2])}:${pad2(+m[3])}` : null;
+  };
+
+  // 1) Campos explícitos
+  if (s && typeof s === 'object'){
+    if (s.startTime) return hhmmss(s.startTime) || hhmm(s.startTime) || '19:30:00';
+    if (s.time)      return hhmm(s.time)       || hhmmss(s.time)   || '19:30:00';
+    if (s.at)        return hhmm(s.at)         || hhmmss(s.at)     || '19:30:00';
+    if (s.start){
+      const d = new Date(s.start);
+      if (!isNaN(+d)) return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
+    }
+  }
+
+  // 2) DTSTART dentro da RRULE (string)
+  const rr = typeof rruleMaybe === 'string' ? rruleMaybe : (s?.rrule || '');
+  const dt = parseDtstartFromRrule(rr);
+  if (dt) return `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}:${pad2(dt.getSeconds())}`;
+
+  // 3) Padrão
+  return '19:30:00';
+}
+function rruleOptionsFromString(rr, fallbackDtStart=null){
+  const opts = RRule.parseString(rr || '');
+  if (!opts.dtstart){
+    const ds = parseDtstartFromRrule(rr);
+    opts.dtstart = ds || fallbackDtStart || new Date();
+  }
+  return opts;
+}
+function parseMinutes(isoOrNum){
+  if (typeof isoOrNum === 'number') return isoOrNum;
+  if (typeof isoOrNum !== 'string') return 60;
+  const m = isoOrNum.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/i);
+  if (!m) return 60;
+  const h = +m[1]||0, mi = +m[2]||0, s = +m[3]||0;
+  return h*60 + mi + Math.round(s/60);
+}
+function toCompactDateTime(d) {
+  // YYYYMMDDTHHMMSS (sem Z para TZ local; FullCalendar usa tz do calendário)
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  const ss = String(d.getSeconds()).padStart(2,'0');
+  return `${y}${m}${day}T${hh}${mm}${ss}`;
+}
+function hhmmFromMinutes(mins=60){
+  const h = Math.floor(mins/60);
+  const m = mins%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+// Aceita string ou objeto; garante dtstart, corrige UNTIL ISO -> compacto; injeta tzid quando possível.
+function normalizeRRule(rruleInput, { defaultTime='18:30', tzid = TZ } = {}) {
+  let opts;
+  if (typeof rruleInput === 'string') {
+    // Converte UNTIL=YYYY-MM-DDTHH:mm:ss -> UNTIL=YYYYMMDDTHHmmss
+    let s = rruleInput.trim();
+
+    s = s.replace(/UNTIL=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z?/i, (m) => {
+      const iso = m.split('=')[1];
+      const d = new Date(iso);
+      return `UNTIL=${toCompactDateTime(d)}`;
+    });
+
+    // Se não tem DTSTART, cria com "próxima ocorrência" no horário pedido (ou default)
+    const hasDtstart = /DTSTART=/i.test(s);
+    if (!hasDtstart) {
+      // tentamos inferir BYDAY. Se não houver, assumimos o dia de hoje
+      let by = (s.match(/BYDAY=([A-Z,]+)/i)?.[1] || '').split(',')[0] || getWeekdayCodeFromDate(new Date());
+      const target = new Date();
+      const weekdays = ['SU','MO','TU','WE','TH','FR','SA'];
+      while (weekdays[target.getDay()] !== by) target.setDate(target.getDate()+1);
+
+      const [hh,mm] = defaultTime.split(':').map(n=>+n||0);
+      target.setHours(hh, mm, 0, 0);
+      s = `${s}${s.endsWith(';')?'':';'}DTSTART=${formatYmd(target)}T${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:00`;
+    }
+
+    // Converte para options para injetar tzid
+    opts = RRule.parseString(s);
+  } else {
+    opts = { ...(rruleInput||{}) };
+  }
+
+  // Corrige UNTIL se vier string
+  if (typeof opts.until === 'string') {
+    const d = new Date(opts.until);
+    if (!isNaN(+d)) opts.until = d;
+  }
+
+  // Garante dtstart
+  if (!opts.dtstart) {
+    const base = new Date();
+    const [hh,mm] = (typeof defaultTime === 'string' ? defaultTime : '18:30').split(':').map(n=>+n||0);
+    base.setHours(hh, mm, 0, 0);
+    opts.dtstart = base;
+  }
+
+  // Seta tzid se disponível (rrule >=2.6)
+  if (tzid) opts.tzid = tzid;
+
+  // Regera string normalizada
+  const normalized = new RRule(opts).toString(); // gera BYDAY/UNTIL/DTSTART nos formatos certos
+  return { opts, rruleString: normalized };
+}
+// Expande um evento (simples ou recorrente) em ocorrências dentro da janela:
+function expandOccurrences(ev, winStart, winEnd){
+  const out = [];
+  if (ev.extendedProps?.rrule){
+    const rr = String(ev.extendedProps.rrule);
+    const startTime = ev.extendedProps.startTime || '19:30:00';
+    let dtstart = parseDtstartFromRrule(rr);
+    if (!dtstart){
+      // fallback: usa a data de início da janela no horário do evento
+      const hhmm = startTime.slice(0,5);
+      dtstart = atTime(winStart, hhmm);
+    }
+    const opts = rruleOptionsFromString(rr, dtstart);
+    const rule = new RRule(opts);
+    const between = rule.between(winStart, winEnd, true);
+    const dur = parseMinutes(ev.extendedProps.duration || 60);
+    between.forEach(s => {
+      const start = new Date(s);
+      const end = new Date(start.getTime() + dur*60000);
+      out.push({ start, end, title: ev.title, location: ev.extendedProps?.location||'', acolytes: normalizeAcolytes(ev.extendedProps?.acolytes||[]) });
+    });
+  } else if (ev.start){
+    const start = new Date(ev.start);
+    const end = ev.end ? new Date(ev.end) : new Date(start.getTime() + 60*60000);
+    if (start < winEnd && end > winStart){
+      out.push({ start, end, title: ev.title, location: ev.extendedProps?.location||'', acolytes: normalizeAcolytes(ev.extendedProps?.acolytes||[]) });
+    }
+  }
+  return out;
+}
+function smartPrintList({ windowStart=null, windowEnd=null, days=14 } = {}){
+  const start = windowStart ? new Date(windowStart) : new Date();
+  start.setHours(0,0,0,0);
+  const end   = windowEnd ? new Date(windowEnd) : new Date(start.getTime() + (days*24*60*60000));
+  const occs = [];
+  calendar.getEvents().forEach(ev => occs.push(...expandOccurrences(ev, start, end)));
+  occs.sort((a,b)=> a.start - b.start);
+
+  if (!occs.length){
+    pushBot(`Nenhuma missa entre ${fmtDdmmyy(start)} e ${fmtDdmmyy(end)}.\n\nQuer outro período? Diga: "liste de 01/10 a 31/10" ou "liste próximos 30 dias".`);
+    return;
+  }
+  // agrupar por dia
+  const byDay = new Map();
+  occs.forEach(o => {
+    const key = formatYmd(o.start);
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key).push(o);
+  });
+
+  const lines = [];
+  lines.push(`Rubrica: Próximas missas (${fmtDdmmyy(start)} – ${fmtDdmmyy(end)})`);
+  for (const [ymd, list] of [...byDay.entries()].sort()){
+    const d = new Date(ymd + 'T00:00:00');
+    lines.push(`${fmtWeekdayDdmmy(d)}`);
+    list.forEach(o => {
+      const tail = [
+        fmtHhmm(o.start),
+        o.title || 'Missa',
+        o.location ? `· ${o.location}` : '',
+        o.acolytes?.length ? `· ${summarizeAcolytes(o.acolytes)}` : ''
+      ].filter(Boolean).join(' ');
+      lines.push(`• ${tail}`);
+    });
+    lines.push(''); // linha em branco
+  }
+  lines.push('Deseja outro período? Posso listar "próximos 7 dias", "de 01/11 a 15/11", etc.');
+  pushBot(lines.join('\n'));
+}
+function pushConfirmDeleteAll(total, onConfirm, onCancel){
+  const wrap = document.createElement('div');
+  wrap.className = 'bubble bot';
+  
+  // Meta info
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.textContent = `${AGENT_NAME} • ${new Date().toLocaleString('pt-BR')}`;
+  wrap.appendChild(meta);
+  
+  // Message content
+  const message = document.createElement('div');
+  message.className = 'proclamation';
+  message.innerHTML = `⚠️ <strong>Confirma apagar TODAS as missas?</strong><br>Serão excluídas <strong>${total}</strong> ${total === 1 ? 'missa' : 'missas'} do calendário.`;
+  wrap.appendChild(message);
+  
+  // Button row
+  const row = document.createElement('div');
+  row.style.cssText = 'display: flex; gap: 8px; margin-top: 12px; align-items: center;';
+  
+  const yes = document.createElement('button');
+  yes.className = 'btn danger mini';
+  yes.textContent = `🗑️ Excluir ${total === 1 ? '1 missa' : `${total} missas`}`;
+  yes.type = 'button';
+  
+  const no = document.createElement('button');
+  no.className = 'btn mini';
+  no.textContent = '❌ Cancelar';
+  no.type = 'button';
+  
+  row.append(yes, no);
+  wrap.appendChild(row);
+  
+  // Add to messages and scroll
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  // Event handlers
+  yes.addEventListener('click', () => {
+    onConfirm?.();
+    wrap.remove();
+  });
+  
+  no.addEventListener('click', () => {
+    onCancel?.();
+    wrap.remove();
+    showToast('Exclusão cancelada.');
+  });
+}
 
     // ======= Execução das ações =======
     function isoOrDate(v){ return v ? new Date(v) : null; }
 
     function applyScheduleAction(schedObj){
+      if (Array.isArray(schedObj)) { schedObj.forEach(applyScheduleAction); return; }
+      // --- atalhos para ações top-level comuns ------------------------------------
+      const topAction = String(schedObj.action || '').toLowerCase();
+
+      // Coloque no escopo de applyScheduleAction (ou acima), uma única vez
+      function parseDateLocal(dateStr){
+        if (!dateStr) return null;
+        const s = String(dateStr).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) { const [y,m,d]=s.split('-').map(Number); return new Date(y, m-1, d); }
+        const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?$/);
+        if (m){ let yy = m[3] ? +m[3] : (new Date()).getFullYear(); if (yy<100) yy+=2000; return new Date(yy, +m[2]-1, +m[1]); }
+        return new Date(s);
+      }
+      function parseHm(timeStr){
+        const m = String(timeStr || '').match(/^(\d{1,2}):(\d{2})$/);
+        return m ? { h:+m[1], m:+m[2] } : { h:19, m:30 };
+      }
+
+      if (topAction === 'create_mass' || topAction === 'create-mass') {
+        const dateObj = parseDateLocal(schedObj.date || schedObj.when || schedObj.on);
+        if (!dateObj || isNaN(+dateObj)){ showToast('Data inválida para criação de missa.', 'err'); return; }
+        const { h, m } = parseHm(schedObj.time || schedObj.at);
+        const start = new Date(dateObj); start.setHours(h, m, 0, 0);
+        const mins = Number(schedObj.durationMinutes) || parseIsoDurationToMinutes(schedObj.duration) || 60;
+        const end = new Date(start.getTime() + mins * 60000);
+
+        const title = schedObj.title || schedObj.event || 'Missa';
+        const location = schedObj.location || '';
+        const acolytes = normalizeAcolytes(schedObj.acolytes);
+
+        const created = addEvent({
+          title, start, end,
+          extendedProps: { location, acolytes }
+        });
+
+        if (created){
+          selectedEvent = created; selectedEventId = created.id;
+          showEventDetails(created);
+        }
+        saveEvents();
+        showToast('Missa criada.');
+        return;
+      }
+
+      if (schedObj.action === 'create_mass_schedule') {
+        const title = schedObj.event || schedObj.title || 'Missa';
+        const location = schedObj.location || '';
+        const timeStr = schedObj.time || schedObj.at || '19:30';
+        const startDateRaw = schedObj.start_date || schedObj.startDate || schedObj.date || schedObj.on || schedObj.when;
+        const baseDate = parseDateLocal(startDateRaw);
+        const acolytes = normalizeAcolytes(schedObj.acolytes);
+        // Suporte a 'weeks' (novo) ou 'days' (legado):
+        const weeks = Number(schedObj.weeks ?? 0);
+        const days  = Number(schedObj.days ?? 0);
+
+        if (!baseDate || isNaN(+baseDate)) { showToast('Data de início inválida para agendamento múltiplo.', 'err'); return; }
+
+        // Heurística:
+        // - se 'weeks' informado => RRULE semanal com COUNT=weeks
+        // - senão, se 'days >= 8' => interpretamos como "semanas", e usamos RRULE semanal com COUNT=days
+        // - caso contrário => manter comportamento antigo (dias consecutivos)
+        const useWeekly = weeks > 0 || days >= 8 || String(schedObj.repeat||'').toLowerCase()==='weekly' || !!schedObj.weekly || String(schedObj.freq||'').toUpperCase()==='WEEKLY';
+
+        if (useWeekly){
+          const count = weeks > 0 ? weeks : Math.max(1, days);
+          const byday = getWeekdayCodeFromDate(baseDate);
+          const dtstart = atTime(baseDate, timeStr);
+          const durationISO = 'PT60M'; // padrão; poderia ler de schedObj.durationMinutes
+          const rrule = `FREQ=WEEKLY;BYDAY=${byday};COUNT=${count};DTSTART=${formatYmd(dtstart)}T${String(dtstart.getHours()).padStart(2,'0')}:${String(dtstart.getMinutes()).padStart(2,'0')}:00`;
+
+          const evt = prepareEventInput({
+            title,
+            rrule,
+            startTime: `${String(dtstart.getHours()).padStart(2,'0')}:${String(dtstart.getMinutes()).padStart(2,'0')}:00`,
+            duration: durationISO,
+            extendedProps: { location, acolytes, rrule, duration: durationISO, startTime: `${String(dtstart.getHours()).padStart(2,'0')}:${String(dtstart.getMinutes()).padStart(2,'0')}:00` }
+          });
+          try {
+            calendar.addEvent(evt);
+            saveEvents();
+            showToast(`Missa recorrente criada (semanal, ${count} ocorrências).`);
+          } catch (err) {
+            console.error('Erro ao criar missa recorrente:', err);
+            showToast('Erro ao criar missa recorrente.', 'err');
+          }
+          return;
+        }
+
+        // ——— fallback: criar dias consecutivos (comportamento antigo) ———
+        const { h, m } = (function parseHm(timeStr){ const mm = String(timeStr||'').match(/^(\d{1,2}):(\d{2})$/); return mm ? { h:+mm[1], m:+mm[2] } : { h:19, m:30 }; })(timeStr);
+        const consecutiveDays = Math.max(1, days || 1);
+        let createdCount = 0;
+        for (let day = 0; day < consecutiveDays; day++) {
+          const eventDate = new Date(baseDate);
+          eventDate.setDate(baseDate.getDate() + day);
+          const start = new Date(eventDate); start.setHours(h, m, 0, 0);
+          const end = new Date(start.getTime() + 60 * 60000);
+          const created = addEvent({ title, start, end, extendedProps: { location, acolytes } });
+          if (created) createdCount++;
+        }
+        saveEvents();
+        showToast(createdCount === 1 ? '1 missa agendada.' : `${createdCount} missas agendadas.`);
+        return;
+      }
+
       const s = schedObj.schedule || {};
       const action = (s.action || 'create').toLowerCase();
 
-      if (action === 'delete' && (s.id === 'ALL' || s.id === '*' || s.title === 'ALL' || s.title === '*')){
-        calendar.getEvents().forEach(e => e.remove());
-        saveEvents();
-        clearEventDetails();
-        showToast('Todas as missas foram removidas.');
-        return;
-      }
-      if (action === 'delete' && s.id && s.id !== 'ALL' && s.id !== '*'){
-        const ev = calendar.getEventById(s.id);
-        if (ev){
-          const wasSelected = selectedEvent && selectedEvent.id === ev.id;
-          ev.remove();
-          saveEvents();
-          if (wasSelected) clearEventDetails();
-          showToast('Missa removida.');
-        } else { showToast('Evento não encontrado para remoção.', 'err'); }
-        return;
-      }
-      if (action === 'delete' && s.title && !s.id){
-        let removed = 0;
-        calendar.getEvents().forEach(e => {
-          if ((e.title || '').toLowerCase().includes(String(s.title).toLowerCase())) {
-            const wasSelected = selectedEvent && selectedEvent.id === e.id;
-            e.remove();
-            if (wasSelected) clearEventDetails();
-            removed++;
+      if (action === 'delete') {
+        // 3.1) Apagar tudo (formas aceitas)
+        const deleteAll = (s.id === 'ALL' || s.id === '*' || s.title === 'ALL' || s.title === '*'
+                           // tolera o caso do LLM ter mandado só "delete"
+                           || (!s.id && !s.title && !s.windowStart && !s.windowEnd));
+        
+        if (deleteAll){
+          const total = calendar.getEvents().length;
+          if (total === 0) {
+            showToast('Não há missas para apagar.', 'info');
+            return;
           }
-        });
-        saveEvents();
-        if (removed === 0){
-          showToast('Nenhuma missa removida.');
-        } else if (removed === 1){
-          showToast('1 missa removida.');
-        } else {
-          showToast(`${removed} missas removidas.`);
+          pushConfirmDeleteAll(total, () => {
+            calendar.getEvents().forEach(e => e.remove());
+            saveEvents(); clearEventDetails(); showToast('Todas as missas foram removidas.');
+          }, () => { /* cancelado */ });
+          return;
         }
+
+        // 3.2) Apagar por janela de datas (opcional)
+        if (s.windowStart || s.windowEnd){
+          const start = isoOrDate(s.windowStart) || new Date(-8640000000000000);
+          const end   = isoOrDate(s.windowEnd)   || new Date( 8640000000000000);
+          let removed = 0;
+          calendar.getEvents().forEach(e=>{
+            const evStart = e.start;
+            const evEnd   = e.end || new Date(evStart.getTime() + 60*60000);
+            if (evStart < end && evEnd > start){ e.remove(); removed++; }
+          });
+          saveEvents(); clearEventDetails();
+          showToast(removed ? `${removed} missas removidas.` : 'Nenhuma missa removida.');
+          return;
+        }
+
+        // 3.3) Apagar por id
+        if (s.id){
+          const ev = calendar.getEventById(s.id);
+          if (ev){
+            const wasSelected = selectedEvent && selectedEvent.id === ev.id;
+            ev.remove();
+            saveEvents();
+            if (wasSelected) clearEventDetails();
+            showToast('Missa removida.');
+          } else { showToast('Evento não encontrado para remoção.', 'err'); }
+          return;
+        }
+
+        // 3.4) Apagar por título (parcial)
+        if (s.title){
+          let removed = 0;
+          calendar.getEvents().forEach(e => {
+            if ((e.title || '').toLowerCase().includes(String(s.title).toLowerCase())) {
+              const wasSelected = selectedEvent && selectedEvent.id === e.id;
+              e.remove();
+              if (wasSelected) clearEventDetails();
+              removed++;
+            }
+          });
+          saveEvents();
+          if (removed === 0){
+            showToast('Nenhuma missa removida.');
+          } else if (removed === 1){
+            showToast('1 missa removida.');
+          } else {
+            showToast(`${removed} missas removidas.`);
+          }
+          return;
+        }
+      }
+
+      if (action === 'move' && (s.id || s.title) && (s.to || s.newStart)){
+        const targets = findEventsByIdOrTitle(s.id, s.title);
+        if (!targets.length){ showToast('Nenhum evento encontrado para mover.', 'err'); return; }
+        let newStart;
+        if (s.to){
+          newStart = parseDateLocal(s.to);
+          if (!newStart || isNaN(+newStart)){ showToast('Data inválida para mover.', 'err'); return; }
+          if (s.time){
+            const { h, m } = parseHm(s.time);
+            newStart.setHours(h, m, 0, 0);
+          }
+        } else if (s.newStart){
+          newStart = isoOrDate(s.newStart);
+          if (!newStart){ showToast('Data/hora inválida para mover.', 'err'); return; }
+        }
+        targets.forEach(ev => {
+          const duration = ev.end ? ev.end.getTime() - ev.start.getTime() : 0;
+          const newEnd = duration ? new Date(newStart.getTime() + duration) : null;
+          ev.setDates(newStart, newEnd, { maintainDuration: !newEnd });
+        });
+        if (selectedEvent && targets.some(ev => ev.id === selectedEvent.id)){
+          showEventDetails(selectedEvent);
+        }
+        saveEvents();
+        const moveLabel = targets.length === 1 ? 'Missa movida' : `${targets.length} missas movidas`;
+        showToast(`${moveLabel} para ${newStart.toLocaleString()}.`);
         return;
       }
 
@@ -1692,27 +3129,62 @@ Responda **sempre em português**, de forma objetiva e confirmatória.
         return;
       }
 
+      if (action === 'list'){
+        smartPrintList({
+          windowStart: s.windowStart,
+          windowEnd: s.windowEnd,
+          days: s.days || 14
+        });
+        return;
+      }
+
       if (action === 'create'){
         const title = s.massName || s.title || 'Missa';
         const location = s.location || '';
         const description = s.description || '';
         const acolytes = normalizeAcolytes(s.acolytes);
+        
+        console.log('DEBUG CREATE ACTION:', { title, location, description, acolytes, rrule: s.rrule });
+        
         if (s.rrule){
-          let duration = s.duration || s.durationISO || s.durationMinutes;
-          if (typeof duration === 'number') duration = `PT${Math.max(1, duration)}M`;
-          if (!duration && s.start && s.end){
-            const ms = new Date(s.end) - new Date(s.start);
-            duration = `PT${Math.round(ms/60000)}M`;
-          }
+          const mins = parseMinutes(s.duration || s.durationISO || s.durationMinutes || 60);
+
+          // 👇 Derivamos a hora de início
+          const startTimeStr = deriveStartTime(s, s.rrule); // "HH:MM:SS"
+          console.log('DEBUG RRULE PROCESSING:', { rrule: s.rrule, mins, startTimeStr });
+
+          const { rruleString } = normalizeRRule(s.rrule, {
+            defaultTime: startTimeStr.slice(0,5), // "HH:MM"
+            tzid: TZ
+          });
+          
+          console.log('DEBUG NORMALIZED RRULE:', { rruleString });
+
           const evt = prepareEventInput({
             id: s.id || undefined,
             title,
-            rrule: s.rrule,
-            duration,
-            extendedProps: { description, location, acolytes, duration }
+            rrule: rruleString,
+            duration: hhmmFromMinutes(mins), // para o FullCalendar
+            startTime: startTimeStr,
+            extendedProps: {
+              description, location, acolytes,
+              rrule: rruleString,
+              duration: `PT${mins}M`,       // guardamos ISO para sua expansão manual
+              startTime: startTimeStr
+            }
           });
-          calendar.addEvent(evt);
-          saveEvents(); showToast('Missa recorrente criada.');
+          
+          console.log('DEBUG EVENT INPUT:', evt);
+
+          try {
+            calendar.addEvent(evt);
+            console.log('DEBUG: Event added to calendar successfully');
+            saveEvents();
+          } catch (error) {
+            console.error('DEBUG ERROR adding event:', error);
+            showToast('Erro ao criar missa recorrente.', 'err');
+          }
+          showToast('Missa recorrente criada.');
           return;
         } else {
           const start = isoOrDate(s.start);
@@ -1724,22 +3196,91 @@ Responda **sempre em português**, de forma objetiva e confirmatória.
             d.setMinutes(d.getMinutes() + mins);
             end = d;
           }
-          const created = addEvent({
-            id: s.id || undefined,
-            title,
-            start, end,
-            extendedProps: { description, location, acolytes }
-          });
-          if (created){
-            selectedEvent = created;
-            selectedEventId = created.id;
-            showEventDetails(created);
+          try {
+            const created = addEvent({
+              id: s.id || undefined,
+              title,
+              start, end,
+              extendedProps: { description, location, acolytes }
+            });
+            if (created){
+              selectedEvent = created;
+              selectedEventId = created.id;
+              showEventDetails(created);
+            }
+            showToast('Missa criada.');
+          } catch (err) {
+            console.error('Erro ao criar missa:', err);
+            showToast('Erro ao criar missa.', 'err');
           }
-          showToast('Missa criada.');
           return;
         }
       }
-      if (action === 'list'){ return; }
+      if (topAction === 'delete_occurrence') {
+        const occDate = isoOrDate(schedObj.occurrence_date);
+        if (!occDate) { showToast('Data da ocorrência inválida para exclusão.', 'err'); return; }
+        const ev = calendar.getEventById(schedObj.id);
+        if (!ev || !ev.extendedProps?.rrule) { showToast('Evento recorrente não encontrado.', 'err'); return; }
+        const currentExdate = ev.extendedProps.exdate || '';
+        const newExdate = currentExdate ? `${currentExdate},${toCompactDateTime(occDate)}` : toCompactDateTime(occDate);
+        ev.setExtendedProp('exdate', newExdate);
+        saveEvents();
+        showToast('Ocorrência excluída.');
+        return;
+      }
+
+      if (topAction === 'update_occurrence') {
+        const occDate = isoOrDate(schedObj.occurrence_date);
+        if (!occDate) { showToast('Data da ocorrência inválida para atualização.', 'err'); return; }
+        const ev = calendar.getEventById(schedObj.id);
+        if (!ev || !ev.extendedProps?.rrule) { showToast('Evento recorrente não encontrado.', 'err'); return; }
+        // Adicionar ao exdate
+        const currentExdate = ev.extendedProps.exdate || '';
+        const newExdate = currentExdate ? `${currentExdate},${toCompactDateTime(occDate)}` : toCompactDateTime(occDate);
+        ev.setExtendedProp('exdate', newExdate);
+        // Criar nova ocorrência simples
+        const newStart = isoOrDate(schedObj.new_start || schedObj.start);
+        const newEnd = isoOrDate(schedObj.new_end || schedObj.end);
+        if (!newStart) { showToast('Nova data/hora inválida.', 'err'); return; }
+        const title = schedObj.title || ev.title;
+        const location = schedObj.location !== undefined ? schedObj.location : ev.extendedProps.location;
+        const description = schedObj.description !== undefined ? schedObj.description : ev.extendedProps.description;
+        const acolytes = schedObj.acolytes !== undefined ? normalizeAcolytes(schedObj.acolytes) : ev.extendedProps.acolytes;
+        const created = addEvent({
+          title,
+          start: newStart,
+          end: newEnd,
+          extendedProps: { location, description, acolytes }
+        });
+        saveEvents();
+        showToast('Ocorrência atualizada.');
+        return;
+      }
+
+      if (topAction === 'move_occurrence') {
+        const occDate = isoOrDate(schedObj.occurrence_date);
+        if (!occDate) { showToast('Data da ocorrência inválida para mover.', 'err'); return; }
+        const ev = calendar.getEventById(schedObj.id);
+        if (!ev || !ev.extendedProps?.rrule) { showToast('Evento recorrente não encontrado.', 'err'); return; }
+        // Adicionar ao exdate
+        const currentExdate = ev.extendedProps.exdate || '';
+        const newExdate = currentExdate ? `${currentExdate},${toCompactDateTime(occDate)}` : toCompactDateTime(occDate);
+        ev.setExtendedProp('exdate', newExdate);
+        // Criar nova ocorrência simples na nova data/hora
+        const newStart = isoOrDate(schedObj.new_start || schedObj.to);
+        if (!newStart) { showToast('Nova data/hora inválida.', 'err'); return; }
+        const duration = ev.end ? ev.end.getTime() - ev.start.getTime() : 60 * 60000;
+        const newEnd = new Date(newStart.getTime() + duration);
+        const created = addEvent({
+          title: ev.title,
+          start: newStart,
+          end: newEnd,
+          extendedProps: { location: ev.extendedProps.location, description: ev.extendedProps.description, acolytes: ev.extendedProps.acolytes }
+        });
+        saveEvents();
+        showToast('Ocorrência movida.');
+        return;
+      }
     }
 
     function findEventsByIdOrTitle(id, title){
@@ -1762,39 +3303,69 @@ Responda **sempre em português**, de forma objetiva e confirmatória.
     }
 
     function computeAvailability(av){
-      const duration = Number(av.durationMinutes) || 60;
+      const duration = Number(av.durationMinutes)||60;
       const start = av.windowStart ? new Date(av.windowStart) : new Date();
-      const end = av.windowEnd ? new Date(av.windowEnd) : new Date(start.getTime() + 24*60*60000);
+      const end   = av.windowEnd   ? new Date(av.windowEnd)   : new Date(start.getTime()+24*60*60000);
 
-      const events = calendar.getEvents().map(e => ({ start: e.start, end: e.end || new Date(e.start.getTime()+60*60000) }))
-        .filter(e => e.start < end && e.end > start)
-        .sort((a,b) => a.start - b.start);
+      const busy = calendar.getEvents()
+        .map(e=>({ start: e.start, end: e.end || new Date(e.start.getTime()+60*60000) }))
+        .filter(e=> e.start < end && e.end > start)
+        .sort((a,b)=> a.start-b.start);
 
-      const merged = [];
-      for (const ev of events){
-        if (!merged.length || ev.start > merged[merged.length-1].end){
-          merged.push({start: new Date(ev.start), end: new Date(ev.end)});
-        } else {
-          merged[merged.length-1].end = new Date(Math.max(merged[merged.length-1].end, ev.end));
-        }
+      // merge busy
+      const merged=[];
+      for(const b of busy){
+        if(!merged.length || b.start>merged.at(-1).end) merged.push({start:new Date(b.start), end:new Date(b.end)});
+        else merged.at(-1).end = new Date(Math.max(merged.at(-1).end, b.end));
       }
 
       const slots = [];
       let cur = new Date(start);
-      for (const busy of merged){
-        if (busy.start - cur >= duration*60000){
+      const need = av.count || 3;
+
+      // percorre da janela, pulando intervalos ocupados e enchendo com blocos de 'duration'
+      while(cur < end && slots.length < need){
+        // se 'cur' cai dentro de um ocupado, pula para o fim dele
+        const hit = merged.find(b=> b.start <= cur && b.end > cur);
+        if(hit){ cur = new Date(hit.end); continue; }
+
+        // próximo ocupado à frente
+        const next = merged.find(b=> b.start > cur) || { start: end };
+        const freeEnd = new Date(Math.min(next.start, end));
+
+        // preenche blocos contíguos de 'duration' nesse intervalo livre
+        while(cur.getTime()+duration*60000 <= freeEnd.getTime() && slots.length < need){
           slots.push({ start: new Date(cur), end: new Date(cur.getTime()+duration*60000) });
+          cur = new Date(cur.getTime()+duration*60000);
         }
-        cur = new Date(Math.max(cur, busy.end));
-        if (slots.length >= (av.count || 3)) break;
-      }
-      while (cur < end && slots.length < (av.count || 3)){
-        if (end - cur >= duration*60000){
-          slots.push({ start: new Date(cur), end: new Date(cur.getTime()+duration*60000) });
-        }
-        break;
+        // se ainda há espaço mas não coube outro bloco completo, salta para o próximo ocupado
+        if(cur < next.start) cur = new Date(next.end || next.start);
       }
       return slots;
+    }
+
+    // Função para gerar chave única de uma ação (para evitar duplicação)
+    function getActionKey(obj) {
+      if (!obj || typeof obj !== 'object') return null;
+      
+      const schedule = obj.schedule || obj;
+      if (!schedule || typeof schedule !== 'object') return null;
+      
+      // Cria uma chave baseada nos campos principais da ação
+      const keyParts = [
+        schedule.action || obj.action || 'unknown',
+        schedule.id || obj.id || '',
+        schedule.title || obj.title || '',
+        schedule.start || obj.start || '',
+        schedule.rrule || obj.rrule || '', // Para eventos recorrentes
+        schedule.location || obj.location || '',
+        schedule.windowStart || obj.windowStart || '',
+        schedule.windowEnd || obj.windowEnd || '',
+        // Incluir acólitos para diferenciar missas com escalas diferentes
+        JSON.stringify(schedule.acolytes || obj.acolytes || {})
+      ];
+      
+      return keyParts.join('|').toLowerCase();
     }
 
     async function onSend(){
@@ -1803,78 +3374,148 @@ Responda **sempre em português**, de forma objetiva e confirmatória.
       inputEl.value = ''; inputEl.dispatchEvent(new Event('input'));
 
       pushUser(text);
+      history.push({ role: 'user', content: text });
+      session.history = history; session.updatedAt = Date.now(); SESS.save(session);
+
       sendBtn.disabled = true; sendBtn.textContent = 'Enviando…';
 
-      try {
-        const data = await callPerplexity(text);
-        const choice = data?.choices?.[0];
-        const content = choice?.message?.content || '(sem conteúdo)';
-        const sources = (data?.search_results || []).slice(0,5);
-
-        history.push({ role: 'user', content: text });
-        history.push({ role: 'assistant', content });
-
-        const { visibleText, actions, raw } = splitVisibleFromActions(content);
-
-        if (actions?.schedules?.length){
-          let created = 0;
-          actions.schedules.forEach(s => {
-            applyScheduleAction(s);
-            const a = (s.schedule?.action||'').toLowerCase();
-            if (a === 'create') created++;
-          });
-          if (created > 0){
-            const msg = created === 1 ? 'Criação processada.' : `${created} criações processadas.`;
-            showToast(msg);
-          }
+      const bubble = createBotStreamBubble();
+      const actions = { schedules: [] }; // vamos preencher conforme cercas JSON fecharem
+      let progressCtl = null;
+      
+      // Sistema unificado de deduplicação - compartilhado entre todas as fases
+      const executedActions = new Set(); 
+      const processedJsonStrings = new Set(); // Para evitar reprocessar mesmo JSON
+      
+      // Função para executar ação apenas se não foi executada
+      const executeActionOnce = (obj, source = '') => {
+        const actionKey = getActionKey(obj);
+        if (actionKey && !executedActions.has(actionKey)) {
+          console.log(`🔥 ${source}: Executing action:`, obj, 'with key:', actionKey);
+          executedActions.add(actionKey);
+          collectAction(obj, { schedules: actions.schedules, availability: [] });
+          applyScheduleAction(obj);
+          return true;
+        } else {
+          console.log(`🔥 ${source}: Skipping duplicate action:`, obj, 'key:', actionKey);
+          return false;
         }
+      };
 
-        pushBot(visibleText || 'Entendido ✅', { details: { raw, actions, sources } });
-
+      try {
+        await streamCallGroq({
+          onDelta: (visible) => {
+            // Tenta extrair mensagem de objetos JSON top-level
+            let displayText = visible;
+            const topJson = extractTopLevelJson(visible);
+            if (topJson) {
+              const msg = extractMessagesFrom(topJson);
+              if (msg) displayText = msg;
+            }
+            bubble.updateVisible(displayText);
+          },
+          onFence: (parsed) => {
+            try {
+              const items = flattenActions(parsed);
+              if (!progressCtl && items.length) progressCtl = bubble.injectActionProgress();
+              
+              for (const obj of items){
+                const executed = executeActionOnce(obj, 'onFence');
+                if (executed && progressCtl) {
+                  progressCtl.tick(Math.min(100, (actions.schedules.length / 1) * 100));
+                }
+              }
+            } catch (err) {
+              console.error('Erro ao processar ação JSON:', err);
+              // Continua sem interromper o streaming
+            }
+          },
+          onDone: ({ raw, sources }) => {
+            if (progressCtl) { progressCtl.tick(100); setTimeout(()=>progressCtl.done(), 300); }
+            // Fallback robusto: re-extrai ações do texto completo
+            const parsed = splitVisibleFromActions(raw);
+            const items = flattenActions(parsed.actions?.schedules?.length ? parsed.actions.schedules : parsed);
+            for (const obj of items) {
+              executeActionOnce(obj, 'onDone');
+            }
+            // Se o texto visível ficou vazio mas houve ação, gere uma confirmação curta
+            let finalVisible = redactActionMentions(bubble.el.textContent.replace(/^[^\n]*\n/, ''));
+            if (!finalVisible && (parsed.actions.schedules?.length || actions.schedules?.length)) {
+              finalVisible = 'OK, ação registrada no calendário.';
+              bubble.updateVisible(finalVisible);
+            }
+            
+            // FALLBACK INTELIGENTE: Se AI não enviou JSON mas deveria ter enviado
+            const totalActionsExecuted = actions.schedules?.length || 0;
+            const hasResponseText = finalVisible && finalVisible.length > 5;
+            
+            if (hasResponseText && totalActionsExecuted === 0) {
+              console.log('🔥 AI response without JSON detected, attempting smart fallback');
+              
+              // Tenta inferir ação baseada no texto da resposta
+              const responseText = finalVisible.toLowerCase();
+              let inferredAction = null;
+              
+              if (responseText.includes('criada') || responseText.includes('agendada') || responseText.includes('recorrente')) {
+                // Detectou criação - mas precisaríamos de mais detalhes para criar JSON válido
+                console.log('🔥 Detected creation response without JSON');
+              } else if (responseText.includes('apagada') || responseText.includes('removida') || responseText.includes('excluída')) {
+                inferredAction = {"schedule":{"action":"delete","id":"ALL"}};
+              } else if (responseText.includes('listada') || responseText.includes('próximas')) {
+                inferredAction = {"schedule":{"action":"list","days":14}};
+              }
+              
+              if (inferredAction) {
+                console.log('🔥 Executing inferred action:', inferredAction);
+                executeActionOnce(inferredAction, 'smartFallback');
+              }
+            }
+            history.push({ role: 'assistant', content: finalVisible || '(sem conteúdo)' });
+            session.history = history; session.updatedAt = Date.now(); SESS.save(session);
+            // Mostra os detalhes com o raw e TODAS as ações detectadas
+            const allActs = { schedules: [...(actions.schedules||[]), ...(parsed.actions.schedules||[])] };
+            bubble.attachDetails({ raw, actions: allActs, sources });
+          }
+        });
       } catch (err){
         console.error(err);
-        pushBot(`Desculpe, houve um erro ao falar com a API.\n\nDetalhes: ${err.message}`);
         showToast('Falha na chamada à API. Veja a mensagem no chat.', 'err');
+        bubble.updateVisible(`Desculpe, houve um erro ao falar com a API.\n\nDetalhes: ${err.message}`);
       } finally {
         sendBtn.disabled = false; sendBtn.textContent = 'Enviar';
       }
     }
 
-    // ======= Controles =======
-    sendBtn.addEventListener('click', onSend);
-    inputEl.addEventListener('keydown', (e)=>{ if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onSend(); }});
+    // ======= Modal de opções =======
+    const optionsBtn = document.getElementById('optionsBtn');
+    const optionsModal = document.getElementById('optionsModal');
+    const closeModalBtn = document.getElementById('closeModal');
 
-    revealBtn.addEventListener('click', ()=>{
-      const showing = apiKeyEl.type !== 'password';
-      apiKeyEl.type = showing ? 'password' : 'text';
-      revealBtn.textContent = showing ? 'ver' : 'ocultar';
-      revealBtn.setAttribute('aria-pressed', String(!showing));
-    });
+    function openModal(){
+      optionsModal.hidden = false;                  // <— remova o hidden
+      optionsModal.classList.add('open');
+      optionsModal.setAttribute('aria-hidden','false');
+      document.body.style.overflow = 'hidden';      // evita scroll do fundo
+      // Foco no primeiro campo
+      const firstField = optionsModal.querySelector('input, select, button');
+      if (firstField) firstField.focus();
+    }
 
-    testBtn.addEventListener('click', async ()=>{
-      try{
-        const data = await callPerplexity('Responda apenas: OK');
-        const txt = data?.choices?.[0]?.message?.content || '';
-        showToast('API respondeu: ' + txt.slice(0,40));
-      }catch(e){
-        showToast('Teste falhou: ' + e.message, 'err');
-      }
-    });
+    function closeModal(){
+      optionsModal.classList.remove('open');
+      optionsModal.setAttribute('aria-hidden','true');
+      optionsModal.hidden = true;                   // <— recoloca o hidden
+      document.body.style.overflow = '';
+      optionsBtn.focus(); // Retorna foco ao botão
+    }
 
-    clearChatBtn.addEventListener('click', ()=>{
-      if (!confirm('Limpar o chat? O calendário será mantido.')) return;
-      messagesEl.innerHTML = '';
-      history = [{ role: 'system', content: SYSTEM_PROMPT }];
-      pushBot('Chat limpo. Como posso ajudar?');
+    optionsBtn.addEventListener('click', openModal);
+    closeModalBtn.addEventListener('click', closeModal);
+    optionsModal.addEventListener('click', (e) => {
+      if (e.target === optionsModal) closeModal();
     });
-
-    apiKeyEl.addEventListener('blur', ()=> {
-      SETTINGS.apiKey = apiKeyEl.value.trim();
-      if (SETTINGS.apiKey) showToast('Chave salva localmente (localStorage).');
-    });
-    modelEl.addEventListener('change', ()=> {
-      SETTINGS.model = modelEl.value;
-      showToast(`Modelo definido: ${modelEl.value}`);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && optionsModal.classList.contains('open')) closeModal();
     });
 
     // ======= Utils =======
@@ -1890,6 +3531,41 @@ Responda **sempre em português**, de forma objetiva e confirmatória.
         .replace(/\n/g,'<br/>');
       return out;
     }
+
+    function missalMarkup(text, defaultMode = 'proclamation'){
+      // Converte texto do usuário/assistente em blocos "Missal"
+      const lines = String(text||'').split(/\r?\n/);
+      const out = [];
+      for (let raw of lines){
+        if (!raw.trim()) continue;
+        // Antífona "R/"
+        if (/^(R\/|R:)\s*/i.test(raw)){
+          out.push(`<p class="antiphon">${escapeHtml(raw.replace(/^(R\/|R:)\s*/i,''))}</p>`);
+          continue;
+        }
+        // Rubricas explícitas
+        if (/^rubrica\s*:/i.test(raw)){
+          out.push(`<p class="rubric">${escapeHtml(raw.replace(/^rubrica\s*:\s*/i,''))}</p>`);
+          continue;
+        }
+        // Por padrão, proclamação (ou rubrica se modo pedir)
+        const cls = defaultMode === 'rubric' ? 'rubric' : 'proclamation';
+        out.push(`<p class="${cls}">${escapeHtml(raw)}</p>`);
+      }
+      return out.join('\n');
+    }
+
+    function redactActionMentions(text){
+      // Remove frases que "anunciam" JSON e qualquer cercado de ```
+      let t = String(text||'');
+      // Remove textos comuns de anúncio
+      t = t.replace(/.*(segue|abaixo|comando|payload|json|código).*\n?/gi, '');
+      // Remove todo conteúdo entre cercas de código
+      t = t.replace(/```[\s\S]*?```/g, '');
+      return t.trim();
+    }
+
+    bootThemeControls();
   </script>
 </body>
 </html>

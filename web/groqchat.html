@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Groq GPT‑OSS Chat • 120B / 20B</title>
+  <meta name="description" content="Chat completo com streaming usando Groq + GPT‑OSS (120B e 20B), com contador de tokens e custos." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Markdown + Highlight -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
+
+  <!-- Tokenizer (ESM) -->
+  <script type="module">
+    import { encode as encode_cl100k } from 'https://cdn.jsdelivr.net/npm/gpt-tokenizer/dist/cl100k_base.js';
+    // Expondo no escopo global de forma segura para scripts não-module.
+    window.__TOKENIZER__ = { encode: encode_cl100k };
+  </script>
+
+  <style>
+    :root{
+      --bg: #0b0d10;
+      --panel: #0f1216;
+      --panel-2: #0c0f13;
+      --brand: #7cf5ff;
+      --brand-2: #67d6ff;
+      --text: #e6edf3;
+      --muted: #9aa4ad;
+      --border: #1c232b;
+      --accent: #2a3340;
+      --danger: #ff6b6b;
+      --success: #42d392;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius-xl: 18px;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin:0; background: radial-gradient(1200px 700px at 85% -5%, rgba(124,245,255,.08), transparent 55%),
+                          radial-gradient(900px 600px at 5% 0%, rgba(103,214,255,.06), transparent 50%), var(--bg);
+      color: var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    /* Topbar */
+    .topbar{
+      position: sticky; top:0; z-index: 20; display:flex; align-items:center; gap:16px; padding:14px 18px;
+      background: linear-gradient(180deg, rgba(15,18,22,.9), rgba(15,18,22,.7)); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo{ display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.2px; }
+    .logo-badge{ width:30px; height:30px; border-radius:10px; background: linear-gradient(135deg, var(--brand), var(--brand-2)); display:grid; place-items:center; color:#0a0d12; font-weight:900; box-shadow: 0 0 0 2px #0a0d12 inset;}
+    .top-actions{ margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .pill{ display:inline-flex; align-items:center; gap:8px; padding:10px 12px; background: var(--panel-2); border:1px solid var(--border); border-radius:999px; }
+    .select, select{ appearance:none; background:transparent; color:var(--text); border:none; outline:none; font-weight:600; }
+    .kbd{ font: 600 12px/1 Inter; background:#11161d; color:#d3d8de; border:1px solid #1f2833; padding:4px 6px; border-radius:6px; }
+    .btn{ border:none; cursor:pointer; padding:10px 14px; border-radius:12px; background: linear-gradient(180deg, #171b22, #0f1318); border:1px solid var(--border); color:var(--text); font-weight:700; letter-spacing:.15px; box-shadow: var(--shadow); }
+    .btn:hover{ transform: translateY(-1px); }
+    .btn.primary{ background: linear-gradient(180deg, #0b2a2f, #072026); border-color:#0f3c44; }
+    .btn.danger{ background: linear-gradient(180deg, #2a1416, #220f11); border-color:#3f1d22; color:#ffc7c7; }
+    .btn.ghost{ background:transparent; box-shadow:none; }
+    .badge{ padding:6px 10px; border-radius:999px; background: #0f1924; border:1px solid #1e2a37; color:#b8e6ff; font-weight:700; }
+    .divider{ height:1px; background: var(--border); margin:10px 0; border-radius:1px; }
+
+    /* Layout */
+    .page{ height: calc(100% - 64px); display:grid; grid-template-columns: 360px 1fr; gap:16px; padding:16px; }
+    @media (max-width: 1120px){ .page{ grid-template-columns: 1fr; } }
+
+    /* Sidebar */
+    .sidebar{ background: linear-gradient(180deg, #0e141b, #0c1218); border:1px solid var(--border); border-radius: var(--radius-xl); padding:14px; box-shadow: var(--shadow); }
+    .panel-title{ font-size:14px; color: var(--muted); margin: 8px 0 12px; letter-spacing:.3px; text-transform: uppercase; }
+    .settings{ display:flex; flex-direction:column; gap:10px; }
+    .input, textarea, .textarea{ width:100%; padding:12px 14px; border-radius:12px; background:#0c1117; border:1px solid #1b232d; color:var(--text); outline:none; }
+    .input:focus, textarea:focus{ border-color:#234155; box-shadow: 0 0 0 3px rgba(103,214,255,.08); }
+    .muted{ color: var(--muted); font-size: 12px; }
+
+    /* Usage panel */
+    .usage{ margin-top:14px; background:#0c1218; border:1px solid var(--border); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; }
+    .usage .row{ display:flex; justify-content:space-between; gap:8px; }
+    .usage .sub{ color:var(--muted); font-size:12px; }
+    .usage .kpi{ display:flex; gap:8px; flex-wrap:wrap; }
+    .usage .kpi .pill{ padding:6px 10px; border-radius:999px; background:#0f1924; border:1px solid #1e2a37; color:#b8e6ff; font-weight:700; }
+
+    /* Chat area */
+    .chat{ background: linear-gradient(180deg, #0d1218, #0a0f14); border:1px solid var(--border); border-radius: var(--radius-xl); display:flex; flex-direction:column; overflow:hidden; box-shadow: var(--shadow); }
+    .messages{ flex:1; overflow:auto; padding:20px; display:flex; flex-direction:column; gap:16px; scroll-behavior:smooth; }
+    .msg{ display:flex; align-items:flex-start; gap:12px; }
+    .avatar{ width:34px; height:34px; border-radius:10px; display:grid; place-items:center; color:#0b0f14; font-weight:900; }
+    .avatar.user{ background:linear-gradient(135deg, #ffd37c, #ffb067); }
+    .avatar.ai{ background:linear-gradient(135deg, var(--brand), var(--brand-2)); }
+    .bubble{ max-width: 100%; padding:14px 16px; border-radius:14px; background:#0b1218; border:1px solid #18202a; box-shadow: inset 0 1px 0 rgba(255,255,255,.02); }
+    .bubble.user{ background:#0f1720; }
+    .bubble .meta{ display:flex; gap:10px; align-items:center; margin-bottom:6px; }
+    .bubble .meta .role{ font-weight:800; letter-spacing:.2px; }
+    .bubble .meta .time{ color:var(--muted); font-size:12px; }
+    .bubble .content{ line-height:1.6; }
+    .bubble .actions{ display:flex; gap:8px; margin-top:8px; opacity:.85; }
+    .bubble .actions button{ background:#0b131a; border:1px solid #1b2a36; color:#cfe7ff; padding:6px 8px; border-radius:8px; font-weight:700; cursor:pointer; }
+    .bubble .actions button:hover{ filter:brightness(1.1); }
+
+    /* Composer */
+    .composer{ padding:14px; border-top:1px solid var(--border); background: linear-gradient(180deg, #0e141a, #0b1116); display:flex; gap:10px; align-items:flex-end; }
+    .composer textarea{ flex:1; min-height:56px; max-height:180px; resize:vertical; }
+    .controls{ display:flex; gap:10px; align-items:center; }
+
+    .toast{ position: fixed; right:18px; bottom:18px; background:#0e151c; color:#d1f2ff; padding:12px 14px; border:1px solid #183042; border-radius:12px; box-shadow: var(--shadow); opacity:0; transform: translateY(10px); transition: all .25s ease; }
+    .toast.show{ opacity:1; transform: translateY(0); }
+
+    .scroll-bottom{ position: absolute; right: 22px; bottom: 110px; background: #0e151c; border:1px solid #183042; color:#cfe7ff; padding:10px 12px; border-radius:12px; display:none; }
+    .scroll-bottom.visible{ display:block; }
+
+    /* Markdown tweaks */
+    .content pre{ background:#0a0f14; border:1px solid #1b2734; border-radius:10px; padding:12px; overflow:auto; }
+    .content code{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.95em; }
+    .content h1,.content h2,.content h3{ border-bottom:1px dashed #1b2330; padding-bottom:4px; }
+    .content table{ width:100%; border-collapse: collapse; }
+    .content th,.content td{ border:1px solid #1b2734; padding:8px; }
+
+    .hint{ font-size:12px; color:#b7c7d6; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-badge">G</div>
+      <div>
+        <div style="font-size:14px; color:#9fb0c2; font-weight:700; letter-spacing:.15px">Groq • GPT‑OSS</div>
+        <div style="font-size:16px; font-weight:900">Chat 120B / 20B</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div class="pill">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v3m0 12v3M4.22 4.22l2.12 2.12m11.32 11.32l2.12 2.12M3 12h3m12 0h3M4.22 19.78l2.12-2.12m11.32-11.32l2.12-2.12" stroke="#7cf5ff" stroke-width="1.5"/></svg>
+        <select id="modelSelect" title="Modelo" aria-label="Modelo">
+          <option value="openai/gpt-oss-120b">GPT‑OSS 120B (razão forte)</option>
+          <option value="openai/gpt-oss-20b">GPT‑OSS 20B (rápido e barato)</option>
+        </select>
+      </div>
+      <button class="btn" id="btnSystem">Instruções</button>
+      <button class="btn" id="btnExport">Exportar</button>
+      <button class="btn" id="btnClear">Novo chat</button>
+      <button class="btn primary" id="btnKey">API Key</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <aside class="sidebar">
+      <div class="panel-title">Configurações</div>
+      <div class="settings">
+        <label>
+          <div class="muted">Chave da API Groq</div>
+          <input id="apiKey" class="input" type="password" placeholder="cole sua GROQ_API_KEY aqui" />
+          <div class="hint">A chave fica salva <b>somente</b> no seu navegador (localStorage).</div>
+        </label>
+        <label>
+          <div class="muted">Prompt do sistema</div>
+          <textarea id="systemPrompt" rows="6" class="textarea" placeholder="Defina o comportamento do assistente.">Você é um assistente útil, preciso e conciso. Responda em português do Brasil por padrão.</textarea>
+        </label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <label class="pill" title="Temperatura">
+            <span style="color:#b9c4cf; font-weight:700;">Temperatura</span>
+            <input id="temp" type="range" min="0" max="2" step="0.1" value="0.5" style="accent-color:#67d6ff; width:100px; margin: 0 8px;"/>
+            <span id="tempVal" class="badge">0.5</span>
+          </label>
+          <label class="pill" title="Máx. tokens de saída">
+            <span style="color:#b9c4cf; font-weight:700;">Max tokens</span>
+            <input id="maxTokens" type="number" min="128" max="65536" value="4096" class="input" style="width:110px; padding:8px 10px;"/>
+          </label>
+        </div>
+        <button id="saveSettings" class="btn primary">Salvar preferências</button>
+        <div class="divider"></div>
+
+        <div class="panel-title">Uso e Custos</div>
+        <div class="usage" id="usagePanel">
+          <div class="row"><div>Modelo atual</div><div id="usageModel" class="sub">—</div></div>
+          <div class="kpi">
+            <div class="pill" id="kpiIn">Entrada: 0 tok</div>
+            <div class="pill" id="kpiOut">Saída: 0 tok</div>
+            <div class="pill" id="kpiCost">Custo atual: USD 0,0000</div>
+          </div>
+          <div class="divider"></div>
+          <div class="row"><div>Total por modelo</div><div class="sub">acumulado</div></div>
+          <div class="kpi" id="kpi120">
+            <div class="pill" id="m120In">120B In: 0</div>
+            <div class="pill" id="m120Out">120B Out: 0</div>
+            <div class="pill" id="m120Cost">120B USD 0,0000</div>
+          </div>
+          <div class="kpi" id="kpi20">
+            <div class="pill" id="m20In">20B In: 0</div>
+            <div class="pill" id="m20Out">20B Out: 0</div>
+            <div class="pill" id="m20Cost">20B USD 0,0000</div>
+          </div>
+          <div class="divider"></div>
+          <div class="row"><div>Hipotético “Tudo 20B”</div><div class="sub">sobre tokens totais</div></div>
+          <div class="kpi">
+            <div class="pill" id="all20">USD 0,0000</div>
+          </div>
+          <div class="row"><div>Hipotético “Tudo 120B”</div><div class="sub">sobre tokens totais</div></div>
+          <div class="kpi">
+            <div class="pill" id="all120">USD 0,0000</div>
+          </div>
+          <div class="row" style="gap:6px; margin-top:6px;">
+            <button class="btn ghost" id="btnResetUsage">Zerar uso</button>
+          </div>
+          <div class="hint">Preços: 120B = $0.15 In / $0.75 Out ; 20B = $0.10 In / $0.50 Out (20B In cacheado $0.05 não aplicado aqui)</div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="muted">Contadores de Tokens (turno atual)</div>
+        <div id="tokenInput" class="hint">Entrada: 0</div>
+        <div id="tokenOutput" class="hint">Saída: 0</div>
+        <div class="divider"></div>
+        <div class="muted">Modelos compatíveis (Groq):</div>
+        <div class="hint">openai/gpt-oss-120b • Contexto 131k • ~500 tps<br/>openai/gpt-oss-20b • Contexto 131k • ~1000 tps</div>
+      </div>
+    </aside>
+
+    <section class="chat" aria-live="polite">
+      <div id="messages" class="messages"></div>
+      <button id="scrollBottom" class="scroll-bottom">Ir para o fim ↓</button>
+      <div class="composer">
+        <textarea id="input" placeholder="Digite aqui... (Shift+Enter = nova linha)" ></textarea>
+        <div class="controls">
+          <button id="stop" class="btn danger" disabled>Parar</button>
+          <button id="send" class="btn primary">Enviar ⌘⏎</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // ===== Util =====
+    const qs = sel => document.querySelector(sel);
+    const elMessages = qs('#messages');
+    const elInput = qs('#input');
+    const elSend = qs('#send');
+    const elStop = qs('#stop');
+    const elScrollBottom = qs('#scrollBottom');
+    const elApiKey = qs('#apiKey');
+    const elModel = qs('#modelSelect');
+    const elSystem = qs('#systemPrompt');
+    const elTemp = qs('#temp');
+    const elTempVal = qs('#tempVal');
+    const elMaxTok = qs('#maxTokens');
+
+    // Usage elements
+    const elUsageModel = qs('#usageModel');
+    const elKpiIn = qs('#kpiIn');
+    const elKpiOut = qs('#kpiOut');
+    const elKpiCost = qs('#kpiCost');
+    const elM120In = qs('#m120In');
+    const elM120Out = qs('#m120Out');
+    const elM120Cost = qs('#m120Cost');
+    const elM20In = qs('#m20In');
+    const elM20Out = qs('#m20Out');
+    const elM20Cost = qs('#m20Cost');
+    const elAll20 = qs('#all20');
+    const elAll120 = qs('#all120');
+    const elBtnResetUsage = qs('#btnResetUsage');
+
+    const STORAGE_KEY = 'groq_chat_v2';
+    let controller = null; // AbortController para streaming
+
+    // Pricing: USD per 1M tokens
+    const PRICING = {
+      'openai/gpt-oss-120b': { in: 0.15, out: 0.75 }, // Docs Groq
+      'openai/gpt-oss-20b': { in: 0.10, out: 0.50 },  // Docs Groq (ignora cacheado)
+    };
+
+    const prettyUSD = (n) => `USD ${n.toFixed(4)}`;
+    const fmtInt = (n) => n.toLocaleString('en-US');
+
+    // Tokenizer
+    const getTokenizer = () => {
+      if (window.__TOKENIZER__?.encode) return window.__TOKENIZER__.encode;
+      return null;
+    };
+
+    const estimateTokens = (text) => {
+      const enc = getTokenizer();
+      if (enc) {
+        try { return enc(text).length; } catch(_) {}
+      }
+      // Fallback aproximado
+      return Math.ceil(text.length / 4);
+    };
+
+    // Serializar mensagens para contagem aproximada de prompt tokens
+    const countPromptTokens = (messages) => {
+      // Aproximação: concatena papéis e conteúdos; não aplica ChatML específico
+      const merged = messages.map(m => `[${m.role}]\n${m.content}`).join('\n');
+      return estimateTokens(merged);
+    };
+
+    // Estado principal
+    const State = {
+      apiKey: '',
+      model: 'openai/gpt-oss-120b',
+      system: '',
+      temperature: 0.5,
+      max_tokens: 4096,
+      history: [], // {role:'user'|'assistant'|'system', content:string}
+      usage: {      // acumuladores por modelo e totais
+        byModel: {
+          'openai/gpt-oss-120b': { in: 0, out: 0 },
+          'openai/gpt-oss-20b': { in: 0, out: 0 },
+        },
+        total: { in: 0, out: 0 }
+      }
+    };
+
+    let inputTokens = 0;
+    let outputTokens = 0;
+    const elTokenInput = qs('#tokenInput');
+    const elTokenOutput = qs('#tokenOutput');
+
+    const loadState = () => {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      try{
+        const saved = JSON.parse(raw);
+        // Migração simples v1->v2
+        if (saved && typeof saved === 'object'){
+          Object.assign(State, saved);
+          // Garantir chaves presentes
+          if (!State.usage?.byModel) {
+            State.usage = {
+              byModel: {
+                'openai/gpt-oss-120b': { in: 0, out: 0 },
+                'openai/gpt-oss-20b': { in: 0, out: 0 },
+              },
+              total: { in: 0, out: 0 }
+            };
+          } else {
+            for (const k of ['openai/gpt-oss-120b','openai/gpt-oss-20b']){
+              State.usage.byModel[k] ||= { in: 0, out: 0 };
+              State.usage.byModel[k].in ||= 0;
+              State.usage.byModel[k].out ||= 0;
+            }
+            State.usage.total ||= { in: 0, out: 0 };
+          }
+        }
+      }catch(e){ console.warn('Falha ao carregar estado:', e) }
+    };
+    const saveState = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(State));
+
+    const toast = (msg, timeout=2400) => {
+      const t = qs('#toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(()=> t.classList.remove('show'), timeout);
+    };
+
+    const timeNow = () => new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+    const addMessage = (role, content, opts={}) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'msg';
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar ' + (role==='user'?'user':'ai');
+      avatar.textContent = role==='user' ? 'U' : 'G';
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble ' + (role==='user'?'user':'');
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const r = document.createElement('span'); r.className='role'; r.textContent = role==='user' ? 'Você' : 'Assistente';
+      const tm = document.createElement('span'); tm.className='time'; tm.textContent = timeNow();
+      meta.append(r, tm);
+      const contentEl = document.createElement('div'); contentEl.className='content';
+
+      if (opts.asHTML){ contentEl.innerHTML = content; }
+      else { contentEl.textContent = content; }
+
+      const actions = document.createElement('div'); actions.className='actions';
+      const copyBtn = document.createElement('button'); copyBtn.textContent = 'Copiar';
+      copyBtn.onclick = () => { navigator.clipboard.writeText(contentEl.innerText).then(()=>toast('Copiado!')); };
+      const regenBtn = document.createElement('button'); regenBtn.textContent = 'Regenerar';
+      regenBtn.onclick = () => {
+        if (role !== 'assistant') return;
+        const lastUser = State.history.slice().reverse().find(m=>m.role==='user');
+        if (lastUser){ sendMessage(lastUser.content, {regenerate:true}); }
+      };
+      actions.append(copyBtn);
+      if (role==='assistant') actions.append(regenBtn);
+
+      bubble.append(meta, contentEl, actions);
+      wrap.append(avatar, bubble);
+      elMessages.append(wrap);
+      elMessages.scrollTop = elMessages.scrollHeight;
+      return {wrap, contentEl};
+    };
+
+    const renderMarkdown = (md) => {
+      marked.setOptions({
+        gfm: true,
+        breaks: true,
+        highlight: (code, lang) => { try { return hljs.highlight(code, {language: lang}).value; } catch(e){ return hljs.highlightAuto(code).value; } }
+      });
+      return marked.parse(md);
+    };
+
+    const updateScrollButton = () => {
+      const nearBottom = elMessages.scrollHeight - (elMessages.scrollTop + elMessages.clientHeight) < 200;
+      elScrollBottom.classList.toggle('visible', !nearBottom);
+    };
+
+    elMessages.addEventListener('scroll', updateScrollButton);
+    elScrollBottom.addEventListener('click', ()=>{
+      elMessages.scrollTop = elMessages.scrollHeight;
+    });
+
+    // ===== API =====
+    const API_BASE = 'https://api.groq.com/openai/v1';
+
+    async function* streamChatCompletion(body){
+      const res = await fetch(`${API_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${State.apiKey}`
+        },
+        body: JSON.stringify({...body, stream:true}),
+        signal: controller?.signal
+      });
+
+      if (!res.ok){
+        const text = await res.text().catch(()=> '');
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while(true){
+        const {value, done} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop();
+        for (const part of parts){
+          const lines = part.split('\n').filter(l=>l.startsWith('data:'));
+          for (const line of lines){
+            const data = line.replace(/^data:\s?/, '').trim();
+            if (data === '[DONE]') return;
+            try{
+              const json = JSON.parse(data);
+              const delta = json.choices?.[0]?.delta?.content || '';
+              if (delta) yield delta;
+            }catch(e){ /* ignore parse errors */ }
+          }
+        }
+      }
+    }
+
+    const buildMessages = () => {
+      const msgs = [];
+      const sys = (State.system||'').trim();
+      if (sys) msgs.push({role:'system', content: sys});
+      for(const m of State.history){ msgs.push({role:m.role, content: m.content}); }
+      return msgs;
+    };
+
+    // ===== Usage & Cost helpers =====
+    const costFor = (model, tin, tout) => {
+      const p = PRICING[model] || { in: 0, out: 0 };
+      // tokens -> per million
+      return (tin/1e6)*p.in + (tout/1e6)*p.out;
+    };
+    const recalcUsageUI = () => {
+      const model = State.model;
+      elUsageModel.textContent = model;
+
+      // KPIs do turno atual
+      elKpiIn.textContent = `Entrada: ${fmtInt(inputTokens)} tok`;
+      elKpiOut.textContent = `Saída: ${fmtInt(outputTokens)} tok`;
+      elKpiCost.textContent = `Custo atual: ${prettyUSD(costFor(model, inputTokens, outputTokens))}`;
+
+      // Totais por modelo
+      const m120 = State.usage.byModel['openai/gpt-oss-120b'];
+      const m20  = State.usage.byModel['openai/gpt-oss-20b'];
+
+      elM120In.textContent = `120B In: ${fmtInt(m120.in)}`;
+      elM120Out.textContent = `120B Out: ${fmtInt(m120.out)}`;
+      elM120Cost.textContent = `120B ${prettyUSD(costFor('openai/gpt-oss-120b', m120.in, m120.out))}`;
+
+      elM20In.textContent = `20B In: ${fmtInt(m20.in)}`;
+      elM20Out.textContent = `20B Out: ${fmtInt(m20.out)}`;
+      elM20Cost.textContent = `20B ${prettyUSD(costFor('openai/gpt-oss-20b', m20.in, m20.out))}`;
+
+      // Hipotéticos
+      const TIN = State.usage.total.in;
+      const TOUT = State.usage.total.out;
+      elAll20.textContent = prettyUSD(costFor('openai/gpt-oss-20b', TIN, TOUT));
+      elAll120.textContent = prettyUSD(costFor('openai/gpt-oss-120b', TIN, TOUT));
+    };
+
+    // Throttle para tokenização incremental da saída
+    let _tokenizeRaf = null;
+    const scheduleOutputRecount = (acc) => {
+      if (_tokenizeRaf) return;
+      _tokenizeRaf = requestAnimationFrame(()=>{
+        _tokenizeRaf = null;
+        outputTokens = estimateTokens(acc);
+        elTokenOutput.textContent = `Saída: ${fmtInt(outputTokens)}`;
+        recalcUsageUI();
+      });
+    };
+
+    async function sendMessage(text, opts={}){
+      if (!State.apiKey){ toast('Cole sua GROQ_API_KEY primeiro.'); qs('#apiKey').focus(); return; }
+      if (!text || !text.trim()) return;
+
+      // persist
+      State.history.push({role:'user', content: text}); saveState();
+      addMessage('user', text);
+
+      const {contentEl} = addMessage('assistant', '');
+      let acc = '';
+
+      // Preparar tokens de entrada
+      const bodyMessages = buildMessages();
+      inputTokens = countPromptTokens(bodyMessages);
+      elTokenInput.textContent = `Entrada: ${fmtInt(inputTokens)}`;
+      outputTokens = 0;
+      elTokenOutput.textContent = `Saída: 0`;
+      recalcUsageUI();
+
+      // Stream
+      controller = new AbortController();
+      elStop.disabled = false; elSend.disabled = true; elInput.disabled = true;
+
+      const body = {
+        model: State.model,
+        temperature: State.temperature,
+        max_tokens: Number(State.max_tokens) || undefined,
+        messages: bodyMessages
+      };
+
+      try{
+        for await (const chunk of streamChatCompletion(body)){
+          acc += chunk;
+          // Atualiza saída com throttle
+          scheduleOutputRecount(acc);
+          contentEl.innerHTML = renderMarkdown(acc);
+          elMessages.scrollTop = elMessages.scrollHeight;
+        }
+        // Finaliza contagem e acumula
+        outputTokens = estimateTokens(acc);
+        elTokenOutput.textContent = `Saída: ${fmtInt(outputTokens)}`;
+
+        // Atualiza acumuladores por modelo
+        const model = State.model;
+        State.usage.byModel[model].in += inputTokens;
+        State.usage.byModel[model].out += outputTokens;
+        State.usage.total.in += inputTokens;
+        State.usage.total.out += outputTokens;
+        saveState();
+        recalcUsageUI();
+
+        State.history.push({role:'assistant', content: acc}); saveState();
+      }catch(err){
+        console.error(err);
+        contentEl.innerHTML = `<div style="color:var(--danger); font-weight:700;">Erro: ${escapeHtml(err.message)}</div>`;
+      }finally{
+        elStop.disabled = true; elSend.disabled = false; elInput.disabled = false; controller = null;
+      }
+    }
+
+    const escapeHtml = (s) => s.replace(/[&<>\"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+
+    // ===== Events =====
+    elSend.addEventListener('click', ()=>{ sendMessage(elInput.value); elInput.value=''; elInput.focus(); });
+    elInput.addEventListener('keydown', (e)=>{
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter'){ e.preventDefault(); elSend.click(); }
+      if (!e.shiftKey && e.key === 'Enter'){ e.preventDefault(); elSend.click(); }
+    });
+
+    elStop.addEventListener('click', ()=>{ if (controller){ controller.abort(); elStop.disabled = true; elSend.disabled=false; elInput.disabled=false; }});
+
+    qs('#btnKey').addEventListener('click', ()=>{ elApiKey.focus(); toast('Cole sua chave e clique em "Salvar preferências"'); });
+    qs('#btnSystem').addEventListener('click', ()=>{ elSystem.focus(); toast('Edite o prompt do sistema e salve.'); });
+
+    qs('#btnClear').addEventListener('click', ()=>{
+      if (!confirm('Limpar todo o histórico do chat?')) return;
+      State.history = []; saveState(); elMessages.innerHTML='';
+      inputTokens = 0; outputTokens = 0;
+      elTokenInput.textContent = 'Entrada: 0';
+      elTokenOutput.textContent = 'Saída: 0';
+      toast('Histórico limpo.');
+    });
+
+    qs('#btnExport').addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify({
+        exported_at: new Date().toISOString(),
+        model: State.model,
+        system: State.system,
+        history: State.history,
+        usage: State.usage,
+        pricing: PRICING
+      }, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='groq-gpt-oss-chat.json'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    qs('#saveSettings').addEventListener('click', ()=>{
+      State.apiKey = elApiKey.value.trim();
+      State.model = elModel.value;
+      State.system = elSystem.value;
+      State.temperature = parseFloat(elTemp.value);
+      State.max_tokens = parseInt(elMaxTok.value,10) || 4096;
+      saveState(); toast('Preferências salvas.');
+      recalcUsageUI();
+    });
+
+    elModel.addEventListener('change', ()=>{
+      State.model = elModel.value; saveState();
+      toast(`Modelo ativo: ${elModel.options[elModel.selectedIndex].text}`);
+      recalcUsageUI();
+    });
+
+    elTemp.addEventListener('input', ()=>{ elTempVal.textContent = elTemp.value; });
+
+    elBtnResetUsage.addEventListener('click', ()=>{
+      if (!confirm('Zerar os acumuladores de uso e custos?')) return;
+      State.usage = {
+        byModel: {
+          'openai/gpt-oss-120b': { in: 0, out: 0 },
+          'openai/gpt-oss-20b': { in: 0, out: 0 },
+        },
+        total: { in: 0, out: 0 }
+      };
+      saveState();
+      recalcUsageUI();
+      toast('Acumuladores zerados.');
+    });
+
+    function hydrate(){
+      loadState();
+      // Inputs
+      elApiKey.value = State.apiKey || '';
+      elModel.value = State.model || 'openai/gpt-oss-120b';
+      elSystem.value = State.system || elSystem.value;
+      elTemp.value = State.temperature ?? 0.5; elTempVal.textContent = String(State.temperature ?? 0.5);
+      elMaxTok.value = State.max_tokens ?? 4096;
+
+      // Render history
+      if (State.history.length){
+        for (const m of State.history){
+          const html = m.role==='assistant' ? renderMarkdown(m.content) : m.content;
+          addMessage(m.role, html, {asHTML: m.role==='assistant'});
+        }
+      } else {
+        addMessage('assistant', renderMarkdown('Bem‑vindo! Cole sua **GROQ_API_KEY** na barra lateral, escolha o modelo (120B para melhor raciocínio; 20B para maior velocidade) e faça sua pergunta.'), {asHTML:true});
+      }
+
+      // Inicializa KPIs
+      inputTokens = 0; outputTokens = 0;
+      elTokenInput.textContent = 'Entrada: 0';
+      elTokenOutput.textContent = 'Saída: 0';
+      recalcUsageUI();
+
+      elInput.focus();
+    }
+    hydrate();
+  </script>
+</body>
+</html>

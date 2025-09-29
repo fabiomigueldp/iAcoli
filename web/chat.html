@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Missal Chat · UI inspirada na Santa Sé</title>
+  <meta name="description" content="Uma interface de chat com LLM inspirada no Missal Romano: tipografia clássica, rubricas em vermelho, paleta litúrgica e hierarquia solene." />
+  <style>
+    /* -------------------------------------------------------
+       MISSAL DESIGN SYSTEM — “odor de Missal” para a web
+       -------------------------------------------------------
+       - Duas tintas: preto (proclamação) e vermelho (rubricas)
+       - Paleta litúrgica como accent (verde, roxo, branco/dourado, vermelho, rosa, preto)
+       - Tipografia serif clássica; versaletes e capitulares
+       - Margens generosas; ornatos discretos; ícones † ✠
+       - Acessibilidade: contraste, redução de movimento, ARIA
+    */
+
+    :root {
+      /* Papel e tintas */
+      --page-cream: #fbf7ef;          /* “papel creme” */
+      --page-cream-ink: #1c1a17;      /* texto principal (preto quente) */
+      --page-cream-ink-weak: #3a362f; /* subtítulos / UI */
+      --rubric-red: #7f0d10;          /* rubricas: vermelho profundo (acessível) */
+      --rubric-red-weak: #a11c1f;
+
+      /* Douração e linhas */
+      --gilded: #c7a760;              /* dourado discreto */
+      --hairline: #e2d7c1;            /* filete/editorial */
+      --parchment: #fffdf7;           /* cartões/balões */
+
+      /* Paleta litúrgica (accents sazonais) */
+      --season-green: #2e5b34;        /* Tempo Comum */
+      --season-violet: #4b2c5f;       /* Advento/Quaresma */
+      --season-red: #8a0f0f;          /* Pentecostes/Mártires/Paixão */
+      --season-white: #bda46e;        /* “branco” com dourado como accent */
+      --season-rose: #b86b7e;         /* Gaudete/Laetare */
+      --season-black: #2b2b2b;        /* Exéquias */
+
+      /* Accent vigente (pode ser alterado pelo seletor de estação) */
+      --accent: var(--season-green);
+
+      /* Tipografia & ritmo */
+      --font-serif: "Georgia", "Garamond", "Palatino", "Times New Roman", serif;
+      --font-size: 18px;              /* base legível (Missal = corpo generoso) */
+      --leading: 1.6;
+      --radius: 12px;
+
+      /* Sombra editorial sutil */
+      --shadow: 0 1px 0 rgba(0,0,0,.02), 0 6px 18px rgba(0,0,0,.06);
+
+      /* Espaçamentos */
+      --gutter: clamp(16px, 2vw, 28px);
+      --maxw: 900px;
+    }
+
+    /* Alto contraste alternativo */
+    .alto-contraste {
+      --page-cream: #fffef9;
+      --page-cream-ink: #111;
+      --rubric-red: #6b0000;
+      --hairline: #d9ccb2;
+      --gilded: #a98a44;
+    }
+
+    html {
+      color-scheme: light only;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(1200px 800px at 120% -10%, rgba(199,167,96,.12), transparent 60%),
+        radial-gradient(1000px 600px at -20% 110%, rgba(126,86,40,.06), transparent 60%),
+        var(--page-cream);
+      color: var(--page-cream-ink);
+      font-family: var(--font-serif);
+      font-size: var(--font-size);
+      line-height: var(--leading);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      hyphens: auto;
+    }
+
+    /* Cabeçalho com friso dourado e filetes rubros (duas tintas) */
+    header.appbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      backdrop-filter: blur(6px);
+      background:
+        linear-gradient(to bottom, rgba(255,255,255,.7), rgba(255,255,255,.3)),
+        linear-gradient(90deg, #fff 0%, #fff 40%, #fffa 60%, #fff 100%);
+      border-bottom: 3px double var(--gilded);
+      box-shadow: 0 2px 0 var(--rubric-red-weak);
+    }
+    .appbar__inner {
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 10px var(--gutter);
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 14px;
+      align-items: center;
+    }
+
+    /* Selo tipográfico (sem emblema oficial) com ✠ e filete */
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-variant: small-caps;
+      letter-spacing: .03em;
+      color: var(--page-cream-ink-weak);
+    }
+    .brand__seal {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background:
+        radial-gradient(12px 12px at 70% 30%, rgba(255,255,255,.6), transparent),
+        conic-gradient(from 180deg at 50% 50%, var(--gilded), #d7bc78, var(--gilded));
+      border: 2px solid var(--hairline);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.4), var(--shadow);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      color: #6a1a1a;
+      text-shadow: 0 1px 0 #fff7;
+    }
+    .brand__seal::before { content: "✠"; font-size: 20px; }
+
+    .brand__title {
+      display: grid;
+      line-height: 1.1;
+    }
+    .brand__title strong {
+      font-variant: small-caps;
+      font-weight: 700;
+    }
+    .brand__subtitle {
+      font-size: .85rem;
+      color: var(--page-cream-ink-weak);
+    }
+
+    /* Controles (estação, contraste, limpar) */
+    .toolbar {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      justify-self: end;
+      flex-wrap: wrap;
+    }
+    .toolbar select, .toolbar button {
+      font: inherit;
+      background: var(--parchment);
+      color: var(--page-cream-ink);
+      border: 1px solid var(--hairline);
+      padding: 6px 10px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+    }
+    .toolbar button.secondary {
+      background: transparent;
+      border-color: var(--hairline);
+      box-shadow: none;
+    }
+    .toolbar .chip {
+      border-left: 4px solid var(--accent);
+      padding-left: 10px;
+    }
+
+    main {
+      max-width: var(--maxw);
+      margin: 18px auto;
+      padding: 0 var(--gutter) 90px;
+    }
+
+    /* Faixa sazonal (como “fitilho”) */
+    .season-ribbon {
+      height: 6px;
+      width: 100%;
+      background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent), #000 20%));
+      border-top: 1px solid color-mix(in srgb, var(--accent), #fff 40%);
+      border-bottom: 1px solid color-mix(in srgb, var(--accent), #000 25%);
+      box-shadow: 0 1px 0 #fff, 0 2px 0 rgba(0,0,0,.05) inset;
+    }
+
+    /* Painel do chat (como miolo de livro) */
+    .folio {
+      background: var(--parchment);
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: clip;
+    }
+
+    .folio__colophon {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--hairline);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--page-cream-ink-weak);
+      font-size: .95rem;
+    }
+    .folio__colophon .marker {
+      width: 8px;
+      height: 24px;
+      border-radius: 3px;
+      background: var(--accent);
+      box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent), #000 30%);
+    }
+
+    /* Janela de mensagens: role=log para leitores de tela */
+    .messages {
+      padding: 18px clamp(14px, 1.6vw, 22px);
+      display: grid;
+      gap: 12px;
+      max-height: min(70vh, 720px);
+      overflow: auto;
+      scroll-behavior: smooth;
+    }
+
+    .msg {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+    .msg.you { grid-template-columns: 1fr 36px; }
+    .msg.you .bubble { order: 1; justify-self: end; border-left: none; border-right: 4px solid var(--accent); }
+    .msg.you .avatar { order: 2; background: var(--accent); color: #fff; border: 2px solid color-mix(in srgb, var(--accent), #000 30%); }
+    .avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: #fff;
+      display: grid; place-items: center;
+      font-weight: 700;
+      color: var(--rubric-red);
+      border: 2px solid var(--hairline);
+      box-shadow: 0 1px 0 #fff, inset 0 0 0 1px rgba(0,0,0,.03);
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .avatar[data-role="ai"]::before { content: "✠"; }
+    .avatar[data-role="me"]::before { content: "R/"; font-size: .9rem; font-variant: small-caps; }
+
+    .bubble {
+      background: #fffdfa;
+      border: 1px solid var(--hairline);
+      border-left: 4px solid var(--accent);
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+      color: var(--page-cream-ink);
+    }
+    .bubble .meta {
+      display: flex; gap: 10px; align-items: baseline; margin-bottom: 4px;
+      font-size: .9rem; color: var(--page-cream-ink-weak);
+      font-variant: small-caps; letter-spacing: .02em;
+    }
+    .bubble .meta .role { font-weight: 700; }
+    .bubble .meta .rubric-chip {
+      padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--rubric-red), #000 20%);
+      border-radius: 6px; color: var(--rubric-red); background: #fff7f7;
+      font-variant: small-caps; letter-spacing: .04em;
+    }
+
+    /* Conteúdo tipográfico do balão */
+    .bubble p { margin: 8px 0; }
+    .bubble p:first-child { margin-top: 2px; }
+    .bubble p:last-child { margin-bottom: 0; }
+
+    .rubric { color: var(--rubric-red); font-style: italic; }
+    .proclamation { color: var(--page-cream-ink); }
+    .antiphon { padding-left: 18px; text-indent: -18px; }
+    .antiphon::before { content: "R/ "; color: var(--page-cream-ink-weak); font-variant: small-caps; letter-spacing: .04em; }
+
+    /* Capitular (opcional em primeiras mensagens longas) */
+    .dropcap:first-letter {
+      float: left;
+      font-size: 3.2em;
+      line-height: .8;
+      padding-right: .08em;
+      margin-top: .02em;
+      color: color-mix(in srgb, var(--accent), #000 20%);
+      font-weight: 700;
+    }
+
+    /* Ações por mensagem */
+    .actions {
+      display: flex; gap: 10px; margin-top: 8px;
+    }
+    .btn-ghost {
+      appearance: none; border: 1px solid var(--hairline);
+      background: transparent; color: var(--page-cream-ink-weak);
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; font: inherit;
+    }
+    .btn-ghost:hover { background: #fff; color: var(--page-cream-ink); }
+
+    /* Composer (rodapé) */
+    .composer {
+      position: sticky; bottom: 0; left: 0; right: 0;
+      padding: 10px var(--gutter);
+      display: grid; place-items: center;
+      background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.75));
+      border-top: 3px double var(--gilded);
+      box-shadow: 0 -2px 0 var(--rubric-red-weak);
+    }
+    .composer__inner {
+      width: 100%; max-width: var(--maxw);
+      background: var(--parchment);
+      border: 1px solid var(--hairline);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 10px;
+      display: grid; grid-template-columns: 1fr auto; gap: 10px;
+    }
+
+    .composer textarea {
+      width: 100%; min-height: 80px; max-height: 40vh; resize: vertical;
+      border: none; outline: none; background: transparent; color: var(--page-cream-ink);
+      font: inherit; line-height: var(--leading);
+    }
+
+    .composer__side {
+      display: grid; gap: 8px; align-content: start;
+    }
+    .segmented {
+      display: inline-flex; border: 1px solid var(--hairline); border-radius: 10px; overflow: hidden;
+      background: #fff;
+    }
+    .segmented button {
+      font: inherit; padding: 8px 10px; border: none; background: transparent; cursor: pointer;
+      color: var(--page-cream-ink-weak);
+    }
+    .segmented button[aria-pressed="true"] {
+      background: #fff7f7; color: var(--rubric-red); border-left: 1px solid var(--hairline);
+    }
+    .send {
+      padding: 10px 14px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--accent), #000 40%);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent), #fff 60%), var(--accent));
+      color: #fff; cursor: pointer; font: inherit; font-weight: 700;
+      text-shadow: 0 1px 0 rgba(0,0,0,.2);
+      box-shadow: 0 1px 0 #fff, inset 0 0 0 1px color-mix(in srgb, var(--accent), #fff 30%);
+    }
+    .send:hover { filter: brightness(1.05); }
+
+    /* Tooltip simples */
+    [data-tooltip] { position: relative; }
+    [data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+      background: #000; color: #fff; padding: 6px 8px; border-radius: 6px; font-size: .85rem; white-space: nowrap;
+      pointer-events: none; opacity: .9;
+    }
+
+    /* Scrollbar sutil */
+    .messages::-webkit-scrollbar { width: 12px; }
+    .messages::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent), #000 25%); border-radius: 10px; border: 3px solid #fff; }
+    .messages::-webkit-scrollbar-track { background: #fff; }
+
+    /* Imprimir (vira páginas “de livro”) */
+    @media print {
+      header, .composer, .toolbar { display: none !important; }
+      body { background: #fff; }
+      .folio { box-shadow: none; border: none; }
+      .messages { max-height: initial; overflow: visible; }
+    }
+
+    /* Reduzir movimento para acessibilidade */
+    @media (prefers-reduced-motion: reduce) {
+      .messages { scroll-behavior: auto; }
+      * { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="appbar" role="banner">
+    <div class="appbar__inner" aria-label="Faixa superior">
+      <div class="brand" aria-label="Marca">
+        <div class="brand__seal" aria-hidden="true"></div>
+        <div class="brand__title">
+          <strong>Missal&nbsp;Chat</strong>
+          <span class="brand__subtitle">Interface inspirada no Missal Romano</span>
+        </div>
+      </div>
+
+      <div class="toolbar" aria-label="Controles de exibição">
+        <label class="chip" for="season" aria-label="Selecionar estação litúrgica">
+          <select id="season">
+            <option value="green">Tempo Comum (Verde)</option>
+            <option value="violet">Advento / Quaresma (Roxo)</option>
+            <option value="white">Natal / Páscoa (Branco & Dourado)</option>
+            <option value="red">Pentecostes / Mártires (Vermelho)</option>
+            <option value="rose">Gaudete / Laetare (Rosa)</option>
+            <option value="black">Exéquias (Preto)</option>
+          </select>
+        </label>
+        <button id="contrast" class="secondary" type="button">Alto contraste</button>
+        <button id="clearChat" class="secondary" type="button" data-tooltip="Limpar todas as mensagens">Limpar</button>
+      </div>
+    </div>
+    <div class="season-ribbon" aria-hidden="true"></div>
+  </header>
+
+  <main>
+    <section class="folio" aria-label="Janela de conversa">
+      <div class="folio__colophon">
+        <div class="marker" aria-hidden="true"></div>
+        <div>
+          <strong style="font-variant: small-caps; letter-spacing:.04em;">Ordo</strong>
+          · Rubricas em <span class="rubric" style="font-style:italic;">vermelho</span>; proclamação em preto.
+        </div>
+      </div>
+
+      <div id="log" class="messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Mensagens do chat">
+        <!-- Mensagem de abertura com capitular -->
+        <article class="msg" data-id="w1">
+          <div class="avatar" data-role="ai" aria-hidden="true"></div>
+          <div class="bubble">
+            <div class="meta"><span class="role">Assistente</span> <span>✠</span></div>
+            <p class="proclamation dropcap">Bem-vindo(a). Esta interface busca a sobriedade, a clareza e a hierarquia visual dos livros litúrgicos.</p>
+            <p class="rubric">Rubrica: escreva sua intenção de oração, estudo ou pergunta. O texto das rubricas aparece em vermelho, como no Missal.</p>
+            <p class="antiphon">Oremos. Mostra-nos, Senhor, os teus caminhos.</p>
+            <div class="actions">
+              <button class="btn-ghost" data-copy>Copiar</button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="composer" aria-label="Compositor de mensagem">
+    <div class="composer__inner">
+      <textarea id="input" aria-label="Escreva sua mensagem" placeholder="Escreva aqui. Dica: prefixe uma linha com 'Rubrica:' para formatá-la em vermelho."></textarea>
+      <div class="composer__side">
+        <div class="segmented" role="group" aria-label="Tipo de mensagem">
+          <button id="modeProcl" aria-pressed="true" type="button" title="Proclamação (texto normal)">Proclamação</button>
+          <button id="modeRubric" aria-pressed="false" type="button" title="Rubrica (instrução litúrgica)">Rubrica</button>
+        </div>
+        <button id="send" class="send" type="button">Enviar</button>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // -------------------------------------------------------
+    // FUNÇÕES DE TEMA (paleta litúrgica + persistência)
+    // -------------------------------------------------------
+    const root = document.documentElement;
+    const qs = sel => document.querySelector(sel);
+
+    const seasonSelect = qs('#season');
+    const contrastBtn  = qs('#contrast');
+
+    const setSeason = (key) => {
+      const map = {
+        green:  'var(--season-green)',
+        violet: 'var(--season-violet)',
+        white:  'var(--season-white)',
+        red:    'var(--season-red)',
+        rose:   'var(--season-rose)',
+        black:  'var(--season-black)'
+      };
+      root.style.setProperty('--accent', map[key] || 'var(--season-green)');
+      localStorage.setItem('missal.season', key);
+      // Ajuste sutil no fundo do balão quando “preto” estiver ativo
+      const parchment = key === 'black' ? '#fbfbfb' : '#fffdfa';
+      root.style.setProperty('--parchment', parchment);
+    };
+
+    seasonSelect.addEventListener('change', e => setSeason(e.target.value));
+
+    contrastBtn.addEventListener('click', () => {
+      document.body.classList.toggle('alto-contraste');
+      const on = document.body.classList.contains('alto-contraste');
+      contrastBtn.textContent = on ? 'Contraste normal' : 'Alto contraste';
+      localStorage.setItem('missal.contrast', on ? '1' : '0');
+    });
+
+    // Estado inicial do tema
+    (function bootTheme() {
+      const season = localStorage.getItem('missal.season') || 'green';
+      seasonSelect.value = season; setSeason(season);
+      const high = localStorage.getItem('missal.contrast') === '1';
+      if (high) document.body.classList.add('alto-contraste');
+      contrastBtn.textContent = high ? 'Contraste normal' : 'Alto contraste';
+    })();
+
+    // -------------------------------------------------------
+    // CHAT — sem backend (mock “LLM” local) + ARIA
+    // Para integrar a um LLM real:
+    // - Troque mockReply() por uma chamada fetch() ao seu endpoint.
+    // -------------------------------------------------------
+    const log = qs('#log');
+    const input = qs('#input');
+    const sendBtn = qs('#send');
+    const clearBtn = qs('#clearChat');
+
+    // Alternância de modo (proclamação x rubrica)
+    const modeProcl = qs('#modeProcl');
+    const modeRubric = qs('#modeRubric');
+    let mode = 'proclamation';
+
+    function setMode(next) {
+      mode = next;
+      modeProcl.setAttribute('aria-pressed', next === 'proclamation');
+      modeRubric.setAttribute('aria-pressed', next === 'rubric');
+      input.placeholder = next === 'rubric'
+        ? "Rubrica: descreva a instrução (aparecerá em vermelho)."
+        : "Escreva aqui. Dica: prefixe uma linha com 'Rubrica:' para formatá-la em vermelho.";
+      input.focus();
+    }
+    modeProcl.addEventListener('click', () => setMode('proclamation'));
+    modeRubric.addEventListener('click', () => setMode('rubric'));
+
+    // Formatação “missal”: detecta linhas iniciadas por “Rubrica:”
+    function missalMarkup(text, defaultMode = 'proclamation') {
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      const frags = lines.map(l => {
+        let cls = 'proclamation';
+        let t = l.trim();
+
+        // Respostas “R/”
+        if (/^(R\/|R:)/i.test(t)) {
+          return `<p class="antiphon">${escapeHTML(t.replace(/^(R\/|R:)\s*/i,''))}</p>`;
+        }
+
+        // Rubricas explícitas
+        if (/^rubrica\s*:/i.test(t)) {
+          t = t.replace(/^rubrica\s*:\s*/i,'');
+          cls = 'rubric';
+        } else if (defaultMode === 'rubric') {
+          cls = 'rubric';
+        }
+        return `<p class="${cls}">${escapeHTML(t)}</p>`;
+      });
+      return frags.join('\n');
+    }
+
+    function escapeHTML(s) {
+      return s.replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+    }
+
+    function addMessage({ role = 'ai', html = '', rubric = false }) {
+      const id = 'm' + Math.random().toString(36).slice(2, 8);
+      const art = document.createElement('article');
+      art.className = `msg ${role === 'me' ? 'you' : ''}`;
+      art.dataset.id = id;
+      art.innerHTML = `
+        <div class="avatar" data-role="${role}" aria-hidden="true"></div>
+        <div class="bubble" role="article">
+          <div class="meta">
+            <span class="role">${role === 'me' ? 'Você' : 'Assistente'}</span>
+            ${rubric ? '<span class="rubric-chip">Rubrica</span>' : ''}
+          </div>
+          ${html}
+          <div class="actions">
+            <button class="btn-ghost" data-copy>Copiar</button>
+          </div>
+        </div>
+      `;
+      log.appendChild(art);
+      // Foco para leitores de tela
+      const b = art.querySelector('.bubble');
+      b.setAttribute('tabindex', '-1');
+      b.focus({ preventScroll: true });
+      log.scrollTop = log.scrollHeight;
+      // Botão copiar
+      art.querySelector('[data-copy]').addEventListener('click', () => {
+        const text = b.innerText.replace(/\s*Copiar\s*$/, '').trim();
+        navigator.clipboard?.writeText(text);
+        const old = art.querySelector('[data-copy]').textContent;
+        art.querySelector('[data-copy]').textContent = 'Copiado!';
+        setTimeout(()=> art.querySelector('[data-copy]').textContent = old, 1200);
+      });
+    }
+
+    // Mock de “resposta litúrgica”: estiliza com rubricas + proclamações
+    function mockReply(userText) {
+      const suggestions = [
+        "Rubrica: faça silêncio por alguns instantes.",
+        "R/ Senhor, escutai a nossa prece.",
+        "Rubrica: permaneçamos sentados para a meditação.",
+        "O Espírito sopra onde quer; a sabedoria se dá a quem pede com humildade."
+      ];
+      const pick = suggestions[Math.floor(Math.random()*suggestions.length)];
+      const body = [
+        `Rubrica: responderei de modo breve e claro.`,
+        userText.length > 140 ? "Para um texto longo, procederemos por partes, mantendo a ordem e a sobriedade." : "Indicaste um ponto preciso: avancemos.",
+        pick
+      ].join('\n');
+
+      // Simula dois parágrafos de resposta
+      return missalMarkup(body, 'proclamation');
+    }
+
+    async function onSend() {
+      const raw = input.value.trim();
+      if (!raw) return;
+
+      // Usuário
+      const userHTML = missalMarkup(raw, mode);
+      addMessage({ role: 'me', html: userHTML, rubric: (mode === 'rubric') || /^rubrica\s*:/i.test(raw) });
+      input.value = '';
+      log.scrollTop = log.scrollHeight;
+
+      // Assistente (placeholder: troque por fetch para LLM real)
+      const placeholder = addTyping();
+      try {
+        // Exemplo de integração real:
+        // const res = await fetch('/api/llm', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: raw }) });
+        // const data = await res.json();
+        // const aiHTML = missalMarkup(data.text, 'proclamation');
+
+        const aiHTML = await typeOut(mockReply(raw)); // efeito “máquina de escrever”
+        removeTyping(placeholder);
+        addMessage({ role: 'ai', html: aiHTML, rubric: false });
+      } catch (e) {
+        removeTyping(placeholder);
+        addMessage({ role: 'ai', html: missalMarkup("Rubrica: ocorreu um erro. Tente novamente mais tarde.", "rubric"), rubric: true });
+      }
+    }
+
+    // Acessibilidade: Enter envia; Shift+Enter quebra linha
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        onSend();
+      }
+    });
+    sendBtn.addEventListener('click', onSend);
+
+    // Limpar conversa
+    clearBtn.addEventListener('click', () => {
+      log.innerHTML = '';
+      // Mensagem de abertura novamente
+      const open = {
+        role: 'ai',
+        html: [
+          '<p class="proclamation">Conversação reiniciada. Conservemos a clareza e a caridade.</p>',
+          '<p class="rubric">Rubrica: escreva a sua intenção acima e pressione Enviar.</p>',
+        ].join('')
+      };
+      addMessage(open);
+    });
+
+    // Tipagem simulada
+    function addTyping() {
+      const art = document.createElement('article');
+      art.className = 'msg';
+      art.dataset.typing = '1';
+      art.innerHTML = `
+        <div class="avatar" data-role="ai" aria-hidden="true"></div>
+        <div class="bubble"><div class="meta"><span class="role">Assistente</span> <span>⋯</span></div>
+          <p class="rubric"><span class="dots">Digitando</span></p>
+        </div>`;
+      log.appendChild(art);
+      log.scrollTop = log.scrollHeight;
+      return art;
+    }
+    function removeTyping(node) { node?.remove(); }
+
+    function typeOut(html) {
+      // Para usuários com redução de movimento, não anima.
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve(html);
+      return new Promise(resolve => {
+        let acc = '';
+        let i = 0;
+        const plain = stripTags(html);
+        const total = Math.min(plain.length, 600); // limita animação
+        const step = () => {
+          i += 3 + Math.random()*3;
+          if (i >= total) return resolve(html);
+          requestAnimationFrame(step);
+        };
+        step();
+      });
+    }
+    function stripTags(s) { const d = document.createElement('div'); d.innerHTML = s; return d.textContent || ''; }
+
+    // Clique em copiar no seed
+    document.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const bubble = e.currentTarget.closest('.bubble');
+        const text = bubble.innerText.replace(/\s*Copiar\s*$/, '').trim();
+        navigator.clipboard?.writeText(text);
+        const old = e.currentTarget.textContent;
+        e.currentTarget.textContent = 'Copiado!';
+        setTimeout(()=> e.currentTarget.textContent = old, 1200);
+      });
+    });
+
+    // Foco inicial no campo
+    window.addEventListener('load', () => input.focus());
+  </script>
+</body>
+</html>

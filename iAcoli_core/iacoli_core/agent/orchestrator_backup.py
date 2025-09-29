@@ -1,631 +1,213 @@
-﻿from __future__ import annotationsfrom __future__ import annotationsfrom __future__ import annotations
-
-
+﻿from __future__ import annotations
 
 import json
-
 import logging
-
-import osimport jsonimport json
-
-from typing import Any, Dict
-
-import loggingimport logging
-
-from ..webapp.container import ServiceContainer
-
-import osimport os
+import os
+import re
+from dataclasses import dataclass, field
+from datetime import date, datetime, time
+from urllib.parse import parse_qsl, urlsplit
+from typing import Any, Callable, Dict, List, Sequence, Tuple
+from uuid import UUID
 
 try:
+    from openai import OpenAI
+except ImportError:  # pragma: no cover - package may be optional locally
+    OpenAI = None  # type: ignore[assignment]
 
-    from openai import OpenAIfrom typing import Any, Dictimport re
+from ..config import FairnessConfig, GeneralConfig, WeightConfig
+from ..errors import ValidationError
+from ..utils import strip_diacritics
+from ..webapp.container import ServiceContainer
+from .prompt_builder import build_system_prompt, load_all_tool_docs
 
-except ImportError:
-
-    OpenAI = Nonefrom ..webapp.container import ServiceContainerfrom dataclasses import dataclass, field
-
+PLACEHOLDER_PATTERN = re.compile(r"\{\{([^{}]+)\}\}")
+PATH_PARAM_PATTERN = re.compile(r"{([^{}]+)}")
 
 
-from .prompt_builder import build_system_prompt, load_all_tool_docsfrom datetime import date, datetime, time
+AGENT_RESPONSE_FORMAT: Dict[str, Any] = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "agent_step",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "thought": {"type": "string"},
+                "action": {
+                    "type": ["object", "null"],
+                    "properties": {
+                        "name": {"type": ["string", "null"]},
+                        "endpoint": {
+                        "type": "string",
+                        "pattern": "^[A-Z]+\\s+/.*$",
+                        "description": "Sempre use o formato METHOD /caminho com os endpoints documentados."
+                    },
+                        "payload": {"type": ["object", "null"]},
+                        "store_result_as": {"type": ["string", "null"]}
+                    },
+                    "required": ["endpoint"],
+                    "additionalProperties": False
+                },
+                "final_answer": {"type": ["string", "null"]},
+                "response_text": {"type": ["string", "null"]}
+            },
+            "required": ["thought"],
+            "additionalProperties": False
+        }
+    }
+}
+
+
+
+def _to_json(data: Any) -> str:
+    try:
+        return json.dumps(data, ensure_ascii=False)
+    except TypeError:
+        return str(data)
+
+@dataclass(slots=True)
+class EndpointHandler:
+    method: str
+    template: str
+    func: Callable[..., Any]
+    expect_payload: bool = True
+    expect_query: bool = False
+    param_names: list[str] = field(init=False)
+    regex: re.Pattern[str] = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.method = self.method.upper()
+        self.param_names: list[str] = PATH_PARAM_PATTERN.findall(self.template)
+        self.regex = self._compile_regex(self.template)
+
+    def match(self, path: str) -> dict[str, str] | None:
+        if path == self.template:
+            return {}
+        match = self.regex.match(path)
+        if not match:
+            return None
+        return {key: value for key, value in match.groupdict().items() if value is not None}
+
+    @staticmethod
+    def _compile_regex(template: str) -> re.Pattern[str]:
+        parts: list[str] = []
+        cursor = 0
+        for match in PATH_PARAM_PATTERN.finditer(template):
+            start, end = match.span()
+            parts.append(re.escape(template[cursor:start]))
+            name = match.group(1)
+            parts.append(f"(?P<{name}>[^/]+)")
+            cursor = end
+        parts.append(re.escape(template[cursor:]))
+        pattern = "^" + "".join(parts) + "$"
+        return re.compile(pattern)
+
 
 class AgentOrchestrator:
-
-    """Sistema de agente simples e robusto que usa o LLM de forma inteligente."""from urllib.parse import parse_qsl, urlsplit
-
-    
-
-    def __init__(self, container: ServiceContainer) -> None:try:from typing import Any, Callable, Dict, List, Sequence, Tuple
-
-        self.container = container
-
-        self.logger = logging.getLogger(__name__)    from openai import OpenAIfrom uuid import UUID
-
-        self.client = None
-
-        except ImportError:
-
-        if OpenAI and os.getenv("PPLX_API_KEY"):
-
-            self.client = OpenAI(    OpenAI = Nonetry:
-
-                api_key=os.getenv("PPLX_API_KEY"),
-
-                base_url="https://api.perplexity.ai"    from openai import OpenAI
-
-            )
-
-            self.logger.info("LLM client configurado com sucesso")except ImportError:  # pragma: no cover - package may be optional locally
-
-        else:
-
-            self.logger.warning("LLM não disponível - PPLX_API_KEY não encontrada")class AgentOrchestrator:    OpenAI = None  # type: ignore[assignment]
-
-    
-
-    def interact(self, user_prompt: str) -> Dict[str, Any]:    """Sistema de agente simples e robusto que usa o LLM de forma inteligente."""
-
-        """Processa a solicitação do usuário usando o LLM de forma inteligente."""
-
-            from ..config import FairnessConfig, GeneralConfig, WeightConfig
-
-        if not self.client:
-
-            return {    def __init__(self, container: ServiceContainer) -> None:from ..errors import ValidationError
-
-                "response_text": "LLM não está disponível. Configure PPLX_API_KEY.",
-
-                "executed_actions": []        self.container = containerfrom ..utils import strip_diacritics
-
-            }
-
-                self.logger = logging.getLogger(__name__)from ..webapp.container import ServiceContainer
-
-        # Constrói contexto dinâmico
-
-        dynamic_context = self._build_dynamic_context()        self.client = Nonefrom .prompt_builder import build_system_prompt, load_all_tool_docs
-
-        
-
-        # Constrói prompt do sistema com contexto        
-
-        system_prompt = self._build_system_prompt(dynamic_context)
-
-                if OpenAI and os.getenv("PPLX_API_KEY"):PLACEHOLDER_PATTERN = re.compile(r"\{\{([^{}]+)\}\}")
-
-        # Chama LLM com configuração robusta
-
-        response = self._call_llm(system_prompt, user_prompt)            self.client = OpenAI(PATH_PARAM_PATTERN = re.compile(r"{([^{}]+)}")
-
-        
-
-        if not response:                api_key=os.getenv("PPLX_API_KEY"),
-
-            return {
-
-                "response_text": "Erro na comunicação com o LLM.",                base_url="https://api.perplexity.ai"
-
-                "executed_actions": []
-
-            }            )AGENT_RESPONSE_FORMAT: Dict[str, Any] = {
-
-        
-
-        # Processa resposta simples            self.logger.info("LLM client configurado com sucesso")    "type": "json_schema",
-
-        return self._process_response(response)
-
-            else:    "json_schema": {
-
-    def _build_dynamic_context(self) -> str:
-
-        """Constrói snapshot do estado atual do sistema."""            self.logger.warning("LLM não disponível - PPLX_API_KEY não encontrada")        "name": "agent_step",
-
-        try:
-
-            service = self.container.service            "schema": {
-
-            people = service.list_people()
-
-            events = service.list_events()    def interact(self, user_prompt: str) -> Dict[str, Any]:            "type": "object",
-
-            
-
-            context = f"""=== ESTADO ATUAL DO SISTEMA ===        """Processa a solicitação do usuário usando o LLM de forma inteligente."""            "properties": {
-
-Pessoas registradas: {len(people)}
-
-Eventos agendados: {len(events)}                        "thought": {"type": "string"},
-
-
-
-PESSOAS:"""        if not self.client:                "action": {
-
-            
-
-            for person in people[:10]:  # Máximo 10 para não ficar muito longo            return {                    "type": ["object", "null"],
-
-                roles = ', '.join(person.roles) if person.roles else 'Nenhuma'
-
-                context += f"\n- {person.name} (ID: {person.id}, Comunidade: {person.community}, Funções: {roles})"                "response_text": "LLM não está disponível. Configure PPLX_API_KEY.",                    "properties": {
-
-            
-
-            if len(people) > 10:                "executed_actions": []                        "name": {"type": ["string", "null"]},
-
-                context += f"\n... e mais {len(people) - 10} pessoas"
-
-                        }                        "endpoint": {
-
-            context += f"\n\nEVENTOS PRÓXIMOS:"
-
-                                            "type": "string",
-
-            for event in sorted(events, key=lambda e: e.dtstart)[:5]:
-
-                context += f"\n- {event.dtstart.strftime('%d/%m/%Y %H:%M')} | {event.community} | {event.kind} | ID: {event.id}"        # Constrói contexto dinâmico                        "pattern": "^[A-Z]+\\s+/.*$",
-
-            
-
-            if len(events) > 5:        dynamic_context = self._build_dynamic_context()                        "description": "Sempre use o formato METHOD /caminho com os endpoints documentados."
-
-                context += f"\n... e mais {len(events) - 5} eventos"
-
-                                        },
-
-            return context
-
-                    # Constrói prompt do sistema com contexto                        "payload": {"type": ["object", "null"]},
-
-        except Exception as e:
-
-            self.logger.error("Erro ao construir contexto: %s", e)        system_prompt = self._build_system_prompt(dynamic_context)                        "store_result_as": {"type": ["string", "null"]}
-
-            return "=== ERRO AO ACESSAR DADOS DO SISTEMA ==="
-
-                                },
-
-    def _build_system_prompt(self, dynamic_context: str) -> str:
-
-        """Constrói prompt do sistema focado e direto."""        # Chama LLM com configuração robusta                    "required": ["endpoint"],
-
-        
-
-        return f"""Você é iAcoli, um assistente de IA para gestão de escalas litúrgicas.        response = self._call_llm(system_prompt, user_prompt)                    "additionalProperties": False
-
-
-
-INSTRUÇÕES CRÍTICAS:                        },
-
-1. Responda SEMPRE em JSON válido no formato: {{"response_text": "sua resposta aqui"}}
-
-2. Seja DIRETO e CLARO nas respostas        if not response:                "final_answer": {"type": ["string", "null"]},
-
-3. Use os dados do contexto atual para responder perguntas
-
-4. Para perguntas simples sobre dados existentes, responda imediatamente            return {                "response_text": {"type": ["string", "null"]}
-
-5. NUNCA repita palavras ou gere texto repetitivo
-
-                "response_text": "Erro na comunicação com o LLM.",            },
-
-{dynamic_context}
-
-                "executed_actions": []            "required": ["thought"],
-
-EXEMPLOS DE RESPOSTAS:
-
-- "Quantos acólitos temos?" → {{"response_text": "Temos X acólitos registrados no sistema."}}            }            "additionalProperties": False
-
-- "Quem são os acólitos?" → {{"response_text": "Os acólitos são: Nome1, Nome2, Nome3..."}}
-
-- "Quantos eventos temos?" → {{"response_text": "Temos X eventos agendados."}}                }
-
-
-
-IMPORTANTE: Responda com base nos dados do contexto atual mostrado acima."""        # Processa resposta simples    }
-
-    
-
-    def _call_llm(self, system_prompt: str, user_prompt: str) -> str | None:        return self._process_response(response)}
-
-        """Chama LLM com configuração robusta contra falhas."""
-
-            
-
-        try:
-
-            response = self.client.chat.completions.create(    def _build_dynamic_context(self) -> str:
-
-                model="sonar",
-
-                messages=[        """Constrói snapshot do estado atual do sistema."""
-
-                    {"role": "system", "content": system_prompt},
-
-                    {"role": "user", "content": user_prompt}        try:def _to_json(data: Any) -> str:
-
-                ],
-
-                max_tokens=500,  # Limite baixo para evitar repetição            service = self.container.service    try:
-
-                temperature=0.0,  # Zero para respostas consistentes
-
-                stop=["}}", "}\n}"],  # Para nas chaves de fechamento JSON            people = service.list_people()        return json.dumps(data, ensure_ascii=False)
-
-                extra_body={"disable_search": True}  # Desabilita busca externa
-
-            )            events = service.list_events()    except TypeError:
-
-            
-
-            content = response.choices[0].message.content                    return str(data)
-
-            
-
-            # Validação básica contra repetição            context = f"""=== ESTADO ATUAL DO SISTEMA ===
-
-            if self._is_repetitive(content):
-
-                self.logger.error("LLM gerou resposta repetitiva, rejeitando")Pessoas registradas: {len(people)}@dataclass(slots=True)
-
-                return None
-
-                Eventos agendados: {len(events)}class EndpointHandler:
-
-            return content
-
-                method: str
-
-        except Exception as e:
-
-            self.logger.error("Erro na chamada LLM: %s", e)PESSOAS:"""    template: str
-
-            return None
-
-                    func: Callable[..., Any]
-
-    def _is_repetitive(self, text: str) -> bool:
-
-        """Detecta se o texto tem padrões repetitivos."""            for person in people[:10]:  # Máximo 10 para não ficar muito longo    expect_payload: bool = True
-
-        if not text or len(text) < 50:
-
-            return False                roles = ', '.join(person.roles) if person.roles else 'Nenhuma'    expect_query: bool = False
-
-            
-
-        # Verifica repetição de palavras                context += f"\n- {person.name} (ID: {person.id}, Comunidade: {person.community}, Funções: {roles})"    param_names: list[str] = field(init=False)
-
-        words = text.split()
-
-        if len(words) > 10:                regex: re.Pattern[str] = field(init=False)
-
-            # Se mais de 30% das palavras são iguais, é repetitivo
-
-            unique_words = len(set(words))            if len(people) > 10:
-
-            if unique_words / len(words) < 0.7:
-
-                return True                context += f"\n... e mais {len(people) - 10} pessoas"    def __post_init__(self) -> None:
-
-        
-
-        # Verifica padrões de substring repetidos                    self.method = self.method.upper()
-
-        for i in range(10, min(50, len(text))):
-
-            substring = text[:i]            context += f"\n\nEVENTOS PRÓXIMOS:"        self.param_names: list[str] = PATH_PARAM_PATTERN.findall(self.template)
-
-            if text.count(substring) > 3:
-
-                return True                    self.regex = self._compile_regex(self.template)
-
-        
-
-        return False            for event in sorted(events, key=lambda e: e.dtstart)[:5]:
-
-    
-
-    def _process_response(self, response_text: str) -> Dict[str, Any]:                context += f"\n- {event.dtstart.strftime('%d/%m/%Y %H:%M')} | {event.community} | {event.kind} | ID: {event.id}"    def match(self, path: str) -> dict[str, str] | None:
-
-        """Processa resposta do LLM extraindo JSON válido."""
-
-                            if path == self.template:
-
-        try:
-
-            # Tenta parsing direto            if len(events) > 5:            return {}
-
-            parsed = json.loads(response_text)
-
-                            context += f"\n... e mais {len(events) - 5} eventos"        match = self.regex.match(path)
-
-            if "response_text" in parsed:
-
-                return {                    if not match:
-
-                    "response_text": parsed["response_text"],
-
-                    "executed_actions": []            return context            return None
-
-                }
-
-            else:                    return {key: value for key, value in match.groupdict().items() if value is not None}
-
-                # Se não tem response_text, usa o texto todo
-
-                return {        except Exception as e:
-
-                    "response_text": response_text,
-
-                    "executed_actions": []            self.logger.error("Erro ao construir contexto: %s", e)    @staticmethod
-
-                }
-
-                            return "=== ERRO AO ACESSAR DADOS DO SISTEMA ==="    def _compile_regex(template: str) -> re.Pattern[str]:
-
-        except json.JSONDecodeError:
-
-            # Se não é JSON válido, tenta extrair entre chaves            parts: list[str] = []
-
-            try:
-
-                start = response_text.find("{")    def _build_system_prompt(self, dynamic_context: str) -> str:        cursor = 0
-
-                end = response_text.rfind("}") + 1
-
-                        """Constrói prompt do sistema focado e direto."""        for match in PATH_PARAM_PATTERN.finditer(template):
-
-                if start >= 0 and end > start:
-
-                    json_part = response_text[start:end]                    start, end = match.span()
-
-                    parsed = json.loads(json_part)
-
-                            return f"""Você é iAcoli, um assistente de IA para gestão de escalas litúrgicas.            parts.append(re.escape(template[cursor:start]))
-
-                    if "response_text" in parsed:
-
-                        return {            name = match.group(1)
-
-                            "response_text": parsed["response_text"],
-
-                            "executed_actions": []INSTRUÇÕES CRÍTICAS:            parts.append(f"(?P<{name}>[^/]+)")
-
-                        }
-
-                1. Responda SEMPRE em JSON válido no formato: {{"response_text": "sua resposta aqui"}}            cursor = end
-
-                # Se nada funcionar, retorna o texto como está
-
-                return {2. Seja DIRETO e CLARO nas respostas        parts.append(re.escape(template[cursor:]))
-
-                    "response_text": f"Resposta do sistema: {response_text}",
-
-                    "executed_actions": []3. Use os dados do contexto atual para responder perguntas        pattern = "^" + "".join(parts) + "$"
-
-                }
-
-                4. Para perguntas simples sobre dados existentes, responda imediatamente        return re.compile(pattern)
-
-            except Exception:
-
-                return {5. NUNCA repita palavras ou gere texto repetitivo
-
-                    "response_text": "Erro ao processar resposta do sistema.",
-
-                    "executed_actions": []
-
-                }
-{dynamic_context}class AgentOrchestrator:
-
     """Coordinates LLM guidance with direct calls into the core service."""
 
-EXEMPLOS DE RESPOSTAS:
-
-- "Quantos acólitos temos?" → {{"response_text": "Temos X acólitos registrados no sistema."}}    def __init__(self, container: ServiceContainer) -> None:
-
-- "Quem são os acólitos?" → {{"response_text": "Os acólitos são: Nome1, Nome2, Nome3..."}}        self.container = container
-
-- "Quantos eventos temos?" → {{"response_text": "Temos X eventos agendados."}}        self.logger = logging.getLogger(__name__)
-
+    def __init__(self, container: ServiceContainer) -> None:
+        self.container = container
+        self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)  # Força nivel DEBUG para transparencia total
+        self.max_iterations = 8
+        self.logger.info("=== ORCHESTRATOR INICIALIZADO ===")
+        self.logger.info("Container: %s", container)
+        self.logger.info("Max iterations: %s", self.max_iterations)
+        # Map endpoints to orchestrator handlers
+        self._handlers: list[EndpointHandler] = []
+        self._register_endpoint("POST", "/api/events", self._create_event)
+        self._register_endpoint("GET", "/api/events", self._list_events)
+        self._register_endpoint("GET", "/api/events/{identifier}", self._get_event_detail, expect_payload=False)
+        self._register_endpoint("PUT", "/api/events/{identifier}", self._update_event)
+        self._register_endpoint("DELETE", "/api/events/{identifier}", self._delete_event, expect_payload=False)
+        self._register_endpoint("GET", "/api/events/{identifier}/pool", self._get_event_pool, expect_payload=False)
+        self._register_endpoint("POST", "/api/events/{identifier}/pool", self._set_event_pool)
+        self._register_endpoint("DELETE", "/api/events/{identifier}/pool", self._clear_event_pool, expect_payload=False)
 
-IMPORTANTE: Responda com base nos dados do contexto atual mostrado acima."""        self.max_iterations = 8
+        self._register_endpoint("POST", "/api/series", self._create_series)
+        self._register_endpoint("GET", "/api/series", self._list_series, expect_payload=False)
+        self._register_endpoint("PATCH", "/api/series/{series_id}", self._update_series)
+        self._register_endpoint("DELETE", "/api/series/{series_id}", self._delete_series, expect_payload=False)
 
-            self.logger.info("=== ORCHESTRATOR INICIALIZADO ===")
+        self._register_endpoint("GET", "/api/series/recorrencias", self._list_recurrences, expect_payload=False)
+        self._register_endpoint("POST", "/api/series/recorrencias", self._create_recurrence)
+        self._register_endpoint("PATCH", "/api/series/recorrencias/{recurrence_id}", self._update_recurrence)
+        self._register_endpoint("DELETE", "/api/series/recorrencias/{recurrence_id}", self._delete_recurrence, expect_payload=False)
 
-    def _call_llm(self, system_prompt: str, user_prompt: str) -> str | None:        self.logger.info("Container: %s", container)
+        self._register_endpoint("POST", "/api/people", self._create_person)
+        self._register_endpoint("GET", "/api/people", self._list_people)
+        self._register_endpoint("GET", "/api/people/{identifier}", self._get_person, expect_payload=False)
+        self._register_endpoint("PUT", "/api/people/{identifier}", self._update_person)
+        self._register_endpoint("PATCH", "/api/people/{identifier}", self._update_person)
+        self._register_endpoint("DELETE", "/api/people/{identifier}", self._delete_person, expect_payload=False)
+        self._register_endpoint("GET", "/api/people/{person_id}/blocks", self._list_person_blocks, expect_payload=False)
+        self._register_endpoint("POST", "/api/people/{person_id}/blocks", self._add_person_block)
+        self._register_endpoint("DELETE", "/api/people/{person_id}/blocks", self._remove_person_block, expect_payload=True, expect_query=True)
 
-        """Chama LLM com configuração robusta contra falhas."""        self.logger.info("Max iterations: %s", self.max_iterations)
+        self._register_endpoint("GET", "/api/schedule/lista", self._schedule_list)
+        self._register_endpoint("GET", "/api/schedule/livres", self._schedule_free)
+        self._register_endpoint("GET", "/api/schedule/checagem", self._schedule_check)
+        self._register_endpoint("GET", "/api/schedule/estatisticas", self._schedule_stats)
+        self._register_endpoint("GET", "/api/schedule/sugestoes", self._schedule_suggestions)
+        self._register_endpoint("GET", "/api/schedule/suggestions", self._schedule_suggestions)
+        self._register_endpoint("POST", "/api/schedule/recalcular", self._schedule_recalculate)
+        self._register_endpoint("POST", "/api/schedule/recalculate", self._schedule_recalculate)
+        self._register_endpoint("POST", "/api/schedule/resetar", self._schedule_reset)
+        self._register_endpoint("POST", "/api/schedule/assignments/apply", self._schedule_apply_assignment)
+        self._register_endpoint("POST", "/api/schedule/atribuir", self._schedule_apply_assignment)
+        self._register_endpoint("POST", "/api/schedule/assignments/clear", self._schedule_clear_assignment)
+        self._register_endpoint("POST", "/api/schedule/limpar", self._schedule_clear_assignment)
+        self._register_endpoint("POST", "/api/schedule/trocar", self._schedule_swap_assignments)
 
-                # Map endpoints to orchestrator handlers
+        self._register_endpoint("GET", "/api/config", self._get_config, expect_payload=False)
+        self._register_endpoint("PUT", "/api/config", self._update_config)
+        self._register_endpoint("POST", "/api/config/recarregar", self._reload_config, expect_payload=False)
 
-        try:        self._handlers: list[EndpointHandler] = []
+        self._register_endpoint("POST", "/api/system/salvar", self._save_state)
+        self._register_endpoint("POST", "/api/system/carregar", self._load_state)
+        self._register_endpoint("POST", "/api/system/undo", self._undo_last, expect_payload=False)
 
-            response = self.client.chat.completions.create(        self._register_endpoint("POST", "/api/events", self._create_event)
+    def _register_endpoint(
+        self,
+        method: str,
+        template: str,
+        handler: Callable[..., Any],
+        *,
+        expect_payload: bool = True,
+        expect_query: bool = False,
+    ) -> None:
+        self._handlers.append(EndpointHandler(method, template, handler, expect_payload, expect_query))
 
-                model="sonar",        self._register_endpoint("GET", "/api/events", self._list_events)
 
-                messages=[        self._register_endpoint("GET", "/api/events/{identifier}", self._get_event_detail, expect_payload=False)
 
-                    {"role": "system", "content": system_prompt},        self._register_endpoint("PUT", "/api/events/{identifier}", self._update_event)
-
-                    {"role": "user", "content": user_prompt}        self._register_endpoint("DELETE", "/api/events/{identifier}", self._delete_event, expect_payload=False)
-
-                ],        self._register_endpoint("GET", "/api/events/{identifier}/pool", self._get_event_pool, expect_payload=False)
-
-                max_tokens=500,  # Limite baixo para evitar repetição        self._register_endpoint("POST", "/api/events/{identifier}/pool", self._set_event_pool)
-
-                temperature=0.0,  # Zero para respostas consistentes        self._register_endpoint("DELETE", "/api/events/{identifier}/pool", self._clear_event_pool, expect_payload=False)
-
-                stop=["}}", "}\n}"],  # Para nas chaves de fechamento JSON
-
-                extra_body={"disable_search": True}  # Desabilita busca externa        self._register_endpoint("POST", "/api/series", self._create_series)
-
-            )        self._register_endpoint("GET", "/api/series", self._list_series, expect_payload=False)
-
-                    self._register_endpoint("PATCH", "/api/series/{series_id}", self._update_series)
-
-            content = response.choices[0].message.content        self._register_endpoint("DELETE", "/api/series/{series_id}", self._delete_series, expect_payload=False)
-
+    def interact(self, user_prompt: str) -> Dict[str, Any]:
+        # Resposta direta para perguntas simples sobre dados
+        direct_response = self._try_direct_response(user_prompt)
+        if direct_response:
+            return direct_response
             
-
-            # Validação básica contra repetição        self._register_endpoint("GET", "/api/series/recorrencias", self._list_recurrences, expect_payload=False)
-
-            if self._is_repetitive(content):        self._register_endpoint("POST", "/api/series/recorrencias", self._create_recurrence)
-
-                self.logger.error("LLM gerou resposta repetitiva, rejeitando")        self._register_endpoint("PATCH", "/api/series/recorrencias/{recurrence_id}", self._update_recurrence)
-
-                return None        self._register_endpoint("DELETE", "/api/series/recorrencias/{recurrence_id}", self._delete_recurrence, expect_payload=False)
-
-                
-
-            return content        self._register_endpoint("POST", "/api/people", self._create_person)
-
-                    self._register_endpoint("GET", "/api/people", self._list_people)
-
-        except Exception as e:        self._register_endpoint("GET", "/api/people/{identifier}", self._get_person, expect_payload=False)
-
-            self.logger.error("Erro na chamada LLM: %s", e)        self._register_endpoint("PUT", "/api/people/{identifier}", self._update_person)
-
-            return None        self._register_endpoint("PATCH", "/api/people/{identifier}", self._update_person)
-
-            self._register_endpoint("DELETE", "/api/people/{identifier}", self._delete_person, expect_payload=False)
-
-    def _is_repetitive(self, text: str) -> bool:        self._register_endpoint("GET", "/api/people/{person_id}/blocks", self._list_person_blocks, expect_payload=False)
-
-        """Detecta se o texto tem padrões repetitivos."""        self._register_endpoint("POST", "/api/people/{person_id}/blocks", self._add_person_block)
-
-        if not text or len(text) < 50:        self._register_endpoint("DELETE", "/api/people/{person_id}/blocks", self._remove_person_block, expect_payload=True, expect_query=True)
-
-            return False
-
-                    self._register_endpoint("GET", "/api/schedule/lista", self._schedule_list)
-
-        # Verifica repetição de palavras        self._register_endpoint("GET", "/api/schedule/livres", self._schedule_free)
-
-        words = text.split()        self._register_endpoint("GET", "/api/schedule/checagem", self._schedule_check)
-
-        if len(words) > 10:        self._register_endpoint("GET", "/api/schedule/estatisticas", self._schedule_stats)
-
-            # Se mais de 30% das palavras são iguais, é repetitivo        self._register_endpoint("GET", "/api/schedule/sugestoes", self._schedule_suggestions)
-
-            unique_words = len(set(words))        self._register_endpoint("GET", "/api/schedule/suggestions", self._schedule_suggestions)
-
-            if unique_words / len(words) < 0.7:        self._register_endpoint("POST", "/api/schedule/recalcular", self._schedule_recalculate)
-
-                return True        self._register_endpoint("POST", "/api/schedule/recalculate", self._schedule_recalculate)
-
-                self._register_endpoint("POST", "/api/schedule/resetar", self._schedule_reset)
-
-        # Verifica padrões de substring repetidos        self._register_endpoint("POST", "/api/schedule/assignments/apply", self._schedule_apply_assignment)
-
-        for i in range(10, min(50, len(text))):        self._register_endpoint("POST", "/api/schedule/atribuir", self._schedule_apply_assignment)
-
-            substring = text[:i]        self._register_endpoint("POST", "/api/schedule/assignments/clear", self._schedule_clear_assignment)
-
-            if text.count(substring) > 3:        self._register_endpoint("POST", "/api/schedule/limpar", self._schedule_clear_assignment)
-
-                return True        self._register_endpoint("POST", "/api/schedule/trocar", self._schedule_swap_assignments)
-
-        
-
-        return False        self._register_endpoint("GET", "/api/config", self._get_config, expect_payload=False)
-
-            self._register_endpoint("PUT", "/api/config", self._update_config)
-
-    def _process_response(self, response_text: str) -> Dict[str, Any]:        self._register_endpoint("POST", "/api/config/recarregar", self._reload_config, expect_payload=False)
-
-        """Processa resposta do LLM extraindo JSON válido."""
-
-                self._register_endpoint("POST", "/api/system/salvar", self._save_state)
-
-        try:        self._register_endpoint("POST", "/api/system/carregar", self._load_state)
-
-            # Tenta parsing direto        self._register_endpoint("POST", "/api/system/undo", self._undo_last, expect_payload=False)
-
-            parsed = json.loads(response_text)
-
-                def _register_endpoint(
-
-            if "response_text" in parsed:        self,
-
-                return {        method: str,
-
-                    "response_text": parsed["response_text"],        template: str,
-
-                    "executed_actions": []        handler: Callable[..., Any],
-
-                }        *,
-
-            else:        expect_payload: bool = True,
-
-                # Se não tem response_text, usa o texto todo        expect_query: bool = False,
-
-                return {    ) -> None:
-
-                    "response_text": response_text,        self._handlers.append(EndpointHandler(method, template, handler, expect_payload, expect_query))
-
-                    "executed_actions": []
-
-                }
-
-                
-
-        except json.JSONDecodeError:    def interact(self, user_prompt: str) -> Dict[str, Any]:
-
-            # Se não é JSON válido, tenta extrair entre chaves        # Resposta direta para perguntas simples sobre dados
-
-            try:        direct_response = self._try_direct_response(user_prompt)
-
-                start = response_text.find("{")        if direct_response:
-
-                end = response_text.rfind("}") + 1            return direct_response
-
-                            
-
-                if start >= 0 and end > start:        dynamic_context = self._build_dynamic_context_snapshot()
-
-                    json_part = response_text[start:end]        tool_docs = load_all_tool_docs()
-
-                    parsed = json.loads(json_part)        system_prompt = build_system_prompt(
-
-                                user_prompt,
-
-                    if "response_text" in parsed:            dynamic_context=dynamic_context,
-
-                        return {            tool_docs=tool_docs,
-
-                            "response_text": parsed["response_text"],        )
-
-                            "executed_actions": []
-
-                        }        stored_results: Dict[str, Any] = {}
-
-                        scratchpad: list[dict[str, str]] = []
-
-                # Se nada funcionar, retorna o texto como está        executed_actions: List[Dict[str, Any]] = []
-
-                return {        final_answer: str | None = None
-
-                    "response_text": f"Resposta do sistema: {response_text}",
-
-                    "executed_actions": []        self.logger.info("=== NOVA INTERACAO INICIADA ===")
-
-                }        self.logger.info("[Agent] User prompt: %s", user_prompt)
-
-                        self.logger.info("[Agent] Resumo dinamico: %s", dynamic_context.replace('\n', ' | '))
-
-            except Exception:        self.logger.info("[Agent] System prompt length: %d chars", len(system_prompt))
-
-                return {
-
-                    "response_text": "Erro ao processar resposta do sistema.",        # Verificação direta para perguntas simples sobre dados existentes
-
-                    "executed_actions": []        direct_answer = self._try_direct_answer(user_prompt, dynamic_context)
-
-                }        if direct_answer:
+        dynamic_context = self._build_dynamic_context_snapshot()
+        tool_docs = load_all_tool_docs()
+        system_prompt = build_system_prompt(
+            user_prompt,
+            dynamic_context=dynamic_context,
+            tool_docs=tool_docs,
+        )
+
+        stored_results: Dict[str, Any] = {}
+        scratchpad: list[dict[str, str]] = []
+        executed_actions: List[Dict[str, Any]] = []
+        final_answer: str | None = None
+
+        self.logger.info("=== NOVA INTERACAO INICIADA ===")
+        self.logger.info("[Agent] User prompt: %s", user_prompt)
+        self.logger.info("[Agent] Resumo dinamico: %s", dynamic_context.replace('\n', ' | '))
+        self.logger.info("[Agent] System prompt length: %d chars", len(system_prompt))
+
+        # Verificação direta para perguntas simples sobre dados existentes
+        direct_answer = self._try_direct_answer(user_prompt, dynamic_context)
+        if direct_answer:
             self.logger.info("[Agent] Resposta direta encontrada, evitando chamada LLM")
             final_answer = direct_answer
             executed_actions = []

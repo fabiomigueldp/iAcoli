@@ -21,154 +21,288 @@
   <script src="https://cdn.jsdelivr.net/npm/@floating-ui/dom@1.6.11"></script>
 
   <style>
-    /* ========= Design tokens (tema claro, sóbrio) ========= */
+    /* ========= Design tokens (tema claro, sóbrio e refinado) ========= */
     :root{
-      /* Papel & tintas */
-      --page-cream: #fbf7ef;          /* "papel creme" */
-      --page-ink: #1c1a17;            /* texto principal (preto quente) */
-      --page-ink-weak: #3a362f;       /* subtítulos/UI */
-      --parchment: #fffdf7;           /* cartões/balões */
+      /* Papel & tintas com maior contraste e suavidade */
+      --page-cream: #faf8f3;          /* "papel creme" mais suave */
+      --page-ink: #1a1816;            /* texto principal (preto quente) */
+      --page-ink-weak: #4a453e;       /* subtítulos/UI com melhor legibilidade */
+      --parchment: #fffffe;           /* cartões/balões mais puros */
 
-      /* Rubricas e douração */
-      --rubric: #7f0d10;              /* vermelho profundo acessível */
-      --rubric-weak: #a11c1f;
-      --gilded: #c7a760;              /* dourado discreto */
-      --hairline: #e2d7c1;            /* filete editorial */
+      /* Rubricas e douração refinadas */
+      --rubric: #8b1215;              /* vermelho profundo mais vibrante */
+      --rubric-weak: #a82327;
+      --gilded: #d4ae6e;              /* dourado mais rico */
+      --hairline: #e6dcc8;            /* filete editorial mais visível */
 
-      /* Paleta litúrgica (accents) */
-      --season-green: #2e5b34;        /* Tempo Comum */
-      --season-violet: #4b2c5f;       /* Advento/Quaresma */
-      --season-red: #8a0f0f;          /* Pentecostes/Mártires/Paixão */
-      --season-white: #bda46e;        /* branco "dourado" */
-      --season-rose: #b86b7e;         /* Gaudete/Laetare */
-      --season-black: #2b2b2b;        /* Exéquias */
+      /* Paleta litúrgica (accents) aprimorada */
+      --season-green: #2d6339;        /* Tempo Comum - mais vibrante */
+      --season-violet: #5b3470;       /* Advento/Quaresma - mais profundo */
+      --season-red: #991317;          /* Pentecostes/Mártires/Paixão - mais intenso */
+      --season-white: #c9ad74;        /* branco "dourado" mais claro */
+      --season-rose: #c77a8e;         /* Gaudete/Laetare - mais suave */
+      --season-black: #2d2d2d;        /* Exéquias */
 
       /* Accent ativo (iniciado em verde) */
       --accent: var(--season-green);
-      --accent-50: color-mix(in srgb, var(--accent), #fff 90%);
-      --accent-ink: color-mix(in srgb, var(--accent), #000 30%);
+      --accent-50: color-mix(in srgb, var(--accent), #fff 92%);
+      --accent-100: color-mix(in srgb, var(--accent), #fff 85%);
+      --accent-200: color-mix(in srgb, var(--accent), #fff 70%);
+      --accent-ink: color-mix(in srgb, var(--accent), #000 35%);
 
-      /* Superfícies (derivadas dos tons "papel") */
+      /* Superfícies com hierarquia visual clara */
       --bg: var(--page-cream);
       --surface: var(--parchment);
-      --surface-2: #fffaf2;
+      --surface-2: #fffdf8;
+      --surface-raised: #ffffff;
       --border: var(--hairline);
+      --border-strong: color-mix(in srgb, var(--hairline), #000 15%);
       --text: var(--page-ink);
       --muted: var(--page-ink-weak);
-      --muted-2: #6b6a64;
+      --muted-2: #706b64;
 
-      /* Estados adaptados ao esquema Missal */
-      --ok: #2f6d44;     --ok-bg: #edf7f1;
-      --warn: #8a6a1f;   --warn-bg: #f9f5e6;
-      --danger: var(--rubric); --danger-bg: #fff2f2;
+      /* Estados com cores mais distintas */
+      --ok: #2b7a45;     --ok-bg: #e8f7ed;
+      --warn: #936e1c;   --warn-bg: #faf6e8;
+      --danger: var(--rubric); --danger-bg: #fff5f5;
 
-      /* Tipografia & ritmo */
-      --radius: 12px;
-      --shadow-1: 0 1px 2px rgba(0,0,0,.06);
-      --shadow-2: 0 6px 18px rgba(0,0,0,.07);
-      --font: 16px/1.6 "Georgia","Garamond","Palatino","Times New Roman",serif;
-      --h1: 18px;
-      --space-1: 6px; --space-2: 10px; --space-3: 14px; --space-4: 18px;
+      /* Tipografia & ritmo aprimorados */
+      --radius: 14px;
+      --radius-sm: 10px;
+      --radius-lg: 18px;
+      --shadow-1: 0 2px 4px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.03);
+      --shadow-2: 0 8px 24px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04);
+      --shadow-3: 0 12px 32px rgba(0,0,0,.12), 0 4px 8px rgba(0,0,0,.06);
+      --font: 16px/1.65 "Georgia","Garamond","Palatino","Times New Roman",serif;
+      --h1: 19px;
+      --space-1: 6px; --space-2: 12px; --space-3: 16px; --space-4: 20px; --space-5: 24px;
+      
+      /* Transições suaves */
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .alto-contraste{
-      --page-cream: #fffef9;
-      --page-ink: #111;
-      --rubric: #6b0000;
-      --hairline: #d9ccb2;
-      --gilded: #a98a44;
+      --page-cream: #ffffff;
+      --page-ink: #000000;
+      --rubric: #750000;
+      --hairline: #c5b89f;
+      --gilded: #9d7a3c;
+      --border-strong: #8a7d69;
     }
 
     *{box-sizing:border-box}
-    html,body{height:100%}
+    html,body{height:100%; scroll-behavior:smooth}
     body{
       margin:0; color:var(--text); font:var(--font);
       display:flex; flex-direction:column;
       background:
-        radial-gradient(1200px 800px at 120% -10%, rgba(199,167,96,.12), transparent 60%),
-        radial-gradient(1000px 600px at -20% 110%, rgba(126,86,40,.06), transparent 60%),
+        radial-gradient(1400px 900px at 115% -12%, rgba(212,174,110,.14), transparent 65%),
+        radial-gradient(1200px 700px at -15% 115%, rgba(139,18,21,.04), transparent 65%),
+        radial-gradient(800px 600px at 50% 50%, rgba(255,255,255,.3), transparent 70%),
         var(--bg);
+      background-attachment: fixed;
     }
 
-    /* Cabeçalho com dupla linha dourada + sombra rubra sutil */
+    /* Cabeçalho com dupla linha dourada + sombra rubra sutil + profundidade */
     header{
       position:sticky; top:0; z-index:10;
-      background:linear-gradient(to bottom, rgba(255,255,255,.7), rgba(255,255,255,.3)), var(--surface);
+      background:
+        linear-gradient(to bottom, rgba(255,255,255,.85), rgba(255,255,255,.5)),
+        var(--surface);
       border-bottom:3px double var(--gilded);
-      box-shadow:0 2px 0 var(--rubric-weak);
+      box-shadow:
+        0 2px 0 var(--rubric-weak),
+        0 4px 12px rgba(0,0,0,.06),
+        inset 0 1px 0 rgba(255,255,255,.7);
       padding: var(--space-3) var(--space-4);
       display:flex; align-items:center; justify-content:space-between; gap: var(--space-3);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
     /* ---------- HEADER: título com capitular dinâmica ---------- */
     header h1{
       font-size:var(--h1);
       margin:0;
-      font-weight:800;
-      letter-spacing:.02em;
-      font-variant:small-caps;
+      font-weight:900;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+      background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent), #000 25%));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      position:relative;
     }
     header h1::first-letter{
-      font-size:1.9em;
-      line-height:.8;
-      color:var(--accent);
+      font-size:2em;
+      line-height:.75;
       margin-right:2px;
       font-weight:900;
+      display:inline-block;
+      text-shadow: 0 2px 4px rgba(0,0,0,.1);
     }
 
-    /* Fitilho sazonal logo abaixo do header */
+    /* Fitilho sazonal logo abaixo do header - mais elegante */
     .season-ribbon{
-      height:6px; width:100%;
-      background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent), #000 20%));
-      border-top:1px solid color-mix(in srgb, var(--accent), #fff 40%);
-      border-bottom:1px solid color-mix(in srgb, var(--accent), #000 25%);
-      box-shadow:0 1px 0 #fff, 0 2px 0 rgba(0,0,0,.05) inset;
+      height:5px; width:100%;
+      background: 
+        linear-gradient(90deg, 
+          color-mix(in srgb, var(--accent), #fff 20%), 
+          var(--accent) 30%, 
+          color-mix(in srgb, var(--accent), #000 15%) 70%,
+          var(--accent));
+      border-top:1px solid color-mix(in srgb, var(--accent), #fff 50%);
+      border-bottom:1px solid color-mix(in srgb, var(--accent), #000 30%);
+      box-shadow:
+        0 1px 2px rgba(0,0,0,.08),
+        inset 0 1px 0 rgba(255,255,255,.2),
+        inset 0 -1px 0 rgba(0,0,0,.15);
+      position: relative;
+      overflow: hidden;
+    }
+    .season-ribbon::after{
+      content:'';
+      position:absolute; inset:0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.2) 50%, transparent);
+      animation: shimmerRibbon 3s infinite;
+    }
+    @keyframes shimmerRibbon{
+      0%, 100% { transform: translateX(-100%); opacity:0; }
+      50% { opacity:.6; }
     }
 
-    /* Painéis como fólios */
+    /* Painéis como fólios com elevação moderna */
     .panel{
-      background:var(--surface);
+      background:var(--surface-raised);
       border:1px solid var(--border);
       border-radius:var(--radius);
       min-height:0; display:flex; flex-direction:column; overflow:hidden;
       box-shadow: var(--shadow-2);
+      transition: box-shadow var(--transition), transform var(--transition);
+    }
+    .panel:hover{
+      box-shadow: var(--shadow-3);
+      transform: translateY(-1px);
     }
     .panel .title{
-      padding:10px 12px;
-      border-bottom:1px solid var(--border);
+      padding:12px 16px;
+      border-bottom:2px solid var(--border);
       color:var(--muted);
-      font-weight:700; letter-spacing:.02em; font-variant:small-caps;
+      font-weight:700; 
+      font-size:14px;
+      letter-spacing:.04em; 
+      text-transform:uppercase;
+      background: linear-gradient(to bottom, var(--surface-2), var(--surface-raised));
+      position: relative;
+    }
+    .panel .title::after{
+      content:'';
+      position:absolute; bottom:0; left:0; right:0;
+      height:1px;
+      background: linear-gradient(90deg, transparent, var(--gilded) 50%, transparent);
+      opacity:.4;
     }
 
-    /* Botões com caráter clássico */
+    /* Botões com caráter clássico refinado */
     .btn{
-      border:1px solid var(--border);
-      background:var(--surface);
+      border:1px solid var(--border-strong);
+      background:linear-gradient(to bottom, var(--surface-raised), var(--surface));
       color:var(--text);
-      padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700;
+      padding:9px 16px; 
+      border-radius:var(--radius-sm); 
+      cursor:pointer; 
+      font-weight:700;
+      font-size:14px;
       box-shadow:var(--shadow-1);
+      transition: all var(--transition);
+      position:relative;
+      overflow:hidden;
+    }
+    .btn::before{
+      content:''; position:absolute; inset:0;
+      background:linear-gradient(135deg, rgba(255,255,255,.1), transparent);
+      opacity:0; transition: opacity var(--transition);
+    }
+    .btn:hover{
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-2);
+      border-color:var(--border-strong);
+    }
+    .btn:hover::before{ opacity:1; }
+    .btn:active{
+      transform: translateY(0);
+      box-shadow: var(--shadow-1);
+    }
+    .btn:disabled{
+      opacity:.5;
+      cursor: not-allowed;
+      transform: none !important;
+      filter: grayscale(0.3);
     }
     .btn.primary{
-      background:linear-gradient(180deg, color-mix(in srgb, var(--accent), #fff 60%), var(--accent));
-      color:#fff; border-color:color-mix(in srgb, var(--accent), #000 35%);
-      text-shadow:0 1px 0 rgba(0,0,0,.25);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.15), transparent 50%),
+        linear-gradient(180deg, color-mix(in srgb, var(--accent), #fff 40%), var(--accent));
+      color:#fff; 
+      border-color:color-mix(in srgb, var(--accent), #000 35%);
+      text-shadow:0 1px 2px rgba(0,0,0,.3);
     }
-    .btn.danger{ background: var(--danger-bg); border-color: var(--danger); color: var(--rubric); }
-    .btn.ghost{ background:transparent }
-    .btn.mini{ padding:6px 10px; font-size:13px }
+    .btn.primary:hover{
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.2), transparent 50%),
+        linear-gradient(180deg, color-mix(in srgb, var(--accent), #fff 30%), color-mix(in srgb, var(--accent), #000 10%));
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--accent), #000 40%);
+    }
+    .btn.danger{ 
+      background: linear-gradient(to bottom, var(--danger-bg), color-mix(in srgb, var(--danger-bg), var(--danger) 10%));
+      border-color: color-mix(in srgb, var(--danger), #000 20%); 
+      color: var(--rubric); 
+    }
+    .btn.danger:hover{
+      background: linear-gradient(to bottom, var(--danger-bg), color-mix(in srgb, var(--danger-bg), var(--danger) 15%));
+      border-color: var(--danger);
+    }
+    .btn.ghost{ background:transparent; box-shadow:none; border-color:transparent; }
+    .btn.ghost:hover{ background:var(--surface-2); border-color:var(--border); }
+    .btn.mini{ padding:7px 12px; font-size:13px; }
+    
+    /* Estados de foco aprimorados para acessibilidade */
+    button:focus-visible,
+    a:focus-visible,
+    select:focus-visible,
+    input:focus-visible{
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 5px var(--accent-50);
+    }
 
     /* CHAT — rubricas, proclamações, capitular, meta em versaletes */
     #messages{ background:var(--surface); }
     .bubble{
-      max-width:92%;
-      padding:10px 12px;
-      border-radius:12px;
+      max-width:90%;
+      padding:14px 16px;
+      border-radius:var(--radius);
       border:1px solid var(--border);
-      background:#fff;
+      background:var(--surface-raised);
       box-shadow:var(--shadow-1);
+      transition: all var(--transition);
+      position:relative;
     }
-    /* fitilho lateral de cada lado */
-    .bubble.bot { align-self:flex-start; border-left:4px solid var(--accent); }
-    .bubble.user{ align-self:flex-end; border-left:4px solid color-mix(in srgb, var(--accent), #000 25%); background:#f3f4f6; }
+    .bubble:hover{
+      box-shadow:var(--shadow-2);
+      transform: translateY(-1px);
+    }
+    /* fitilho lateral de cada lado com gradiente */
+    .bubble.bot { 
+      align-self:flex-start; 
+      border-left:4px solid var(--accent);
+      background: linear-gradient(to right, var(--accent-50), var(--surface-raised) 40px);
+    }
+    .bubble.user{ 
+      align-self:flex-end; 
+      border-left:4px solid color-mix(in srgb, var(--accent), #000 25%);
+      background: linear-gradient(to left, color-mix(in srgb, var(--accent), #fff 94%), var(--surface-raised) 40px);
+    }
 
     .meta{
       font-size:12px; color:var(--muted); margin-bottom:6px;
@@ -189,26 +323,112 @@
     .bubble .antiphon { white-space: normal; }
 
     /* Campos, barras e focos coerentes */
-    .field{ background:var(--surface-2); border:1px solid var(--border); }
-    .inputRow{ background:var(--surface-2); border-top:1px solid var(--border); }
-    :focus-visible{ outline:2px solid color-mix(in oklab, var(--accent) 55%, transparent); outline-offset:2px; }
+    .field{ 
+      background:var(--surface-raised); 
+      border:2px solid var(--border); 
+      border-radius:var(--radius-sm);
+      padding:var(--space-2);
+      transition: all var(--transition);
+      position:relative;
+    }
+    .field:hover{ 
+      border-color:var(--border-strong); 
+      box-shadow: var(--shadow-1);
+    }
+    .field:focus-within{ 
+      border-color:var(--accent); 
+      box-shadow: 0 0 0 4px var(--accent-50), var(--shadow-1);
+      transform: translateY(-1px);
+    }
+    .field label{
+      display:block;
+      font-size:13px;
+      font-weight:700;
+      color:var(--muted);
+      margin-bottom:6px;
+      text-transform:uppercase;
+      letter-spacing:.02em;
+    }
+    .field input,
+    .field select,
+    .field textarea{
+      width:100%;
+      border:none;
+      background:transparent;
+      color:var(--text);
+      font:inherit;
+      padding:8px;
+      border-radius:var(--radius-sm);
+      outline:none;
+    }
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus{
+      background:rgba(255,255,255,.5);
+    }
+    .inputRow{ 
+      background:linear-gradient(to bottom, var(--surface-2), var(--surface-raised)); 
+      border-top:1px solid var(--border-strong);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
+    }
+    :focus-visible{ 
+      outline:2px solid var(--accent); 
+      outline-offset:2px; 
+      box-shadow: 0 0 0 4px var(--accent-50);
+    }
 
-    /* TOAST em chave verde/rubra */
-    .toast{ background:#fff; color:var(--text); border-left:4px solid var(--ok); border:1px solid var(--border); }
-    .toast.err{ border-left-color: var(--rubric); background: var(--danger-bg); }
+    /* TOAST em chave verde/rubra - mais visível */
+    .toast{ 
+      background:var(--surface-raised); 
+      color:var(--text); 
+      border:1px solid var(--border-strong);
+      border-left:4px solid var(--ok);
+      font-weight:600;
+      animation: toastSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(8px);
+    }
+    .toast.err{ 
+      border-left-color: var(--rubric); 
+      background: linear-gradient(to right, var(--danger-bg), var(--surface-raised) 80px);
+      color: var(--rubric);
+    }
+    @keyframes toastSlideIn{
+      from{ transform: translateX(120%); opacity:0; }
+      to{ transform: translateX(0); opacity:1; }
+    }
 
     /* CALENDÁRIO — cartões com duas tintas e seleção em dourado */
     .event-card{
-      background:#fffdfa;
+      background:var(--surface-raised);
       border:1px solid var(--border);
-      border-radius:10px;
+      border-radius:var(--radius-sm);
       box-shadow: var(--shadow-1);
+      transition: all var(--transition);
+      padding:8px 10px;
     }
-    .event-card .event-title{ color:var(--text); font-weight:700; }
-    .event-card .event-meta{ color:var(--muted); }
+    .fc-event:hover .event-card{
+      box-shadow: var(--shadow-2);
+      transform: translateY(-1px);
+      border-color:var(--border-strong);
+    }
+    .event-card .event-title{ 
+      color:var(--text); 
+      font-weight:700; 
+      font-size:13px;
+      line-height:1.4;
+    }
+    .event-card .event-meta{ 
+      color:var(--muted); 
+      font-size:12px;
+      margin-top:4px;
+    }
     .fc-event.is-selected .event-card{
-      border-color: var(--gilded);
-      box-shadow: 0 0 0 2px rgba(199,167,96,.35);
+      border-color: var(--accent);
+      background: var(--accent-50);
+      box-shadow: 
+        0 0 0 2px var(--accent-100),
+        0 4px 12px color-mix(in srgb, var(--accent), #000 30%);
+      transform: scale(1.02);
     }
 
     /* FullCalendar em chave Missal */
@@ -242,27 +462,62 @@
     /* ========= Chat ========= */
     #chat{display:flex; flex-direction:column; height:100%}
     #messages{
-      flex:1; overflow:auto; padding: var(--space-3); display:flex; flex-direction:column; gap: var(--space-2);
-      scrollbar-width: thin; scrollbar-color: #d6d8dd transparent;
+      flex:1; overflow:auto; padding: var(--space-4); display:flex; flex-direction:column; gap: var(--space-3);
+      scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
       background:var(--surface);
     }
-    #messages::-webkit-scrollbar{ width:10px }
-    #messages::-webkit-scrollbar-track{ background:transparent }
-    #messages::-webkit-scrollbar-thumb{ background:#d6d8dd; border:2px solid transparent; background-clip:padding-box; border-radius:999px }
+    #messages::-webkit-scrollbar{ width:12px }
+    #messages::-webkit-scrollbar-track{ background:transparent; border-radius:999px; }
+    #messages::-webkit-scrollbar-thumb{ 
+      background:var(--border-strong); 
+      border:3px solid var(--surface); 
+      background-clip:padding-box; 
+      border-radius:999px;
+      transition: background var(--transition);
+    }
+    #messages::-webkit-scrollbar-thumb:hover{ 
+      background:var(--muted-2); 
+    }
 
-    .meta{ font-size:11px; color:var(--muted); margin-bottom:6px }
+    .meta{ 
+      font-size:11px; 
+      color:var(--muted-2); 
+      margin-bottom:8px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      opacity:.8;
+    }
 
     .inputRow{
       display:flex; gap:8px; padding:10px; border-top:1px solid var(--border); background:var(--surface-2)
     }
     .inputRow textarea{
-      flex:1; resize:none; min-height:54px; max-height:120px; padding:10px; border-radius:10px; border:1px solid var(--border); outline:none;
-      background:#fff; color:var(--text); font:inherit; scrollbar-width:none; -ms-overflow-style:none;
+      flex:1; resize:none; min-height:58px; max-height:140px; 
+      padding:12px 14px; 
+      border-radius:var(--radius-sm); 
+      border:2px solid var(--border); 
+      outline:none;
+      background:var(--surface-raised); 
+      color:var(--text); 
+      font:inherit; 
+      scrollbar-width:thin; 
+      scrollbar-color: var(--border-strong) transparent;
+      transition: all var(--transition);
+    }
+    .inputRow textarea:hover{
+      border-color:var(--border-strong);
+    }
+    .inputRow textarea:focus{
+      border-color:var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-50);
+      background:#fff;
     }
     .inputRow textarea::placeholder{
       white-space:normal;
+      color:var(--muted);
+      opacity:.8;
     }
-    .inputRow textarea::-webkit-scrollbar{ display:none }
 
     /* ========= Calendário ========= */
     .calendar-panel{display:flex; flex-direction:column;}
@@ -358,11 +613,17 @@
       justify-content:space-between;
       align-items:center;
       gap: var(--space-2);
-      padding:8px 10px;
-      background:var(--surface);
+      padding:10px 14px;
+      background:linear-gradient(to right, var(--surface-2), var(--surface-raised));
       border:1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: var(--radius-sm);
       font-size:13px;
+      transition: all var(--transition);
+    }
+    .acolyte-item:hover{
+      border-color:var(--border-strong);
+      box-shadow: var(--shadow-1);
+      transform: translateX(2px);
     }
     .acolyte-item .acolyte-role{
       font-weight:600;
@@ -393,20 +654,68 @@
         order:2;
       }
     }
-    /* FullCalendar: tema neutro e coerente */
-    .fc .fc-toolbar-title{ font-size:14px; font-weight:700; color:var(--text); font-variant:small-caps; }
+    /* FullCalendar: tema neutro e coerente com melhorias visuais */
+    .fc .fc-toolbar-title{ 
+      font-size:15px; 
+      font-weight:800; 
+      color:var(--text);
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
     .fc .fc-button{
-      background:#fff; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:5px 10px;
+      background:linear-gradient(to bottom, var(--surface-raised), var(--surface)); 
+      border:2px solid var(--border); 
+      color:var(--text); 
+      border-radius:var(--radius-sm); 
+      padding:6px 12px;
+      font-weight:700;
+      transition: all var(--transition);
+      box-shadow: var(--shadow-1);
+    }
+    .fc .fc-button:hover{
+      background:linear-gradient(to bottom, var(--surface-2), var(--surface));
+      border-color:var(--border-strong);
+      box-shadow: var(--shadow-2);
+      transform: translateY(-1px);
     }
     .fc .fc-button-primary:not(:disabled).fc-button-active,
-    .fc .fc-button-primary:not(:disabled):active,
-    .fc .fc-button-primary:hover{
-      background:var(--surface-2); border-color:var(--border); color:var(--text);
+    .fc .fc-button-primary:not(:disabled):active{
+      background:linear-gradient(to bottom, var(--accent-100), var(--accent-50)); 
+      border-color:var(--accent); 
+      color:var(--accent-ink);
+      box-shadow: 0 0 0 3px var(--accent-50);
     }
-    .fc-theme-standard td, .fc-theme-standard th{ border-color:var(--border) }
-    .fc .fc-daygrid-day-number{ color:var(--muted); font-weight:600 }
-    .fc .fc-col-header-cell-cushion{ color:var(--muted); }
-    .fc .fc-day-today{ background: color-mix(in srgb, var(--accent), #fff 85%) !important }
+    .fc-theme-standard td, .fc-theme-standard th{ 
+      border-color:var(--border);
+    }
+    .fc .fc-daygrid-day-number{ 
+      color:var(--muted); 
+      font-weight:700;
+      font-size:13px;
+    }
+    .fc .fc-col-header-cell-cushion{ 
+      color:var(--muted); 
+      font-weight:700;
+      text-transform:uppercase;
+      font-size:11px;
+      letter-spacing:.05em;
+    }
+    .fc .fc-day-today{ 
+      background: var(--accent-100) !important;
+      box-shadow: inset 0 0 0 2px var(--accent-200);
+    }
+    .fc .fc-daygrid-day:hover{
+      background: var(--surface-2) !important;
+      cursor:pointer;
+      transition: background var(--transition);
+    }
+    .fc .fc-daygrid-day-top{
+      transition: all var(--transition);
+    }
+    .fc .fc-day-today .fc-daygrid-day-number{
+      color:var(--accent-ink);
+      font-weight:900;
+    }
 
     /* ========= details/sources ========= */
     details{margin-top:8px; border-top:1px dashed var(--border); padding-top:8px}
@@ -441,37 +750,89 @@
     main{
       display: grid;
       grid-template-columns: 1fr 2fr 1fr;
-      gap: var(--space-3);
-      padding: var(--space-3);
-      min-height: calc(100vh - 120px); /* considerando header e ribbon */
+      gap: var(--space-4);
+      padding: var(--space-4);
+      min-height: calc(100vh - 130px);
+      max-width: 1920px;
+      margin: 0 auto;
+    }
+    @media (max-width: 1400px){
+      main{
+        grid-template-columns: 1fr 1.5fr 1fr;
+      }
+    }
+    @media (max-width: 1100px){
+      main{
+        grid-template-columns: 1fr;
+        gap: var(--space-3);
+      }
+    }
+    @media (max-width: 640px){
+      main{
+        padding: var(--space-2);
+        gap: var(--space-2);
+      }
     }
     .modal{
       position:fixed; top:0; left:0; width:100%; height:100%;
-      background:rgba(0,0,0,.5); z-index:1000;
+      background:rgba(0,0,0,.55); 
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index:1000;
       display:flex; align-items:center; justify-content:center;
-      opacity:0; visibility:hidden; transition:opacity 0.2s ease, visibility 0.2s ease;
+      opacity:0; visibility:hidden; 
+      transition:opacity var(--transition-slow), visibility var(--transition-slow);
     }
     .modal.open{
       opacity:1; visibility:visible;
     }
+    .modal.open .modal-content{
+      animation: modalEnter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @keyframes modalEnter{
+      from{ transform: scale(0.95) translateY(20px); opacity:0; }
+      to{ transform: scale(1) translateY(0); opacity:1; }
+    }
     /* ---------- MODAL (layout mais limpo e preciso) ---------- */
     .modal-content{
-      max-width:720px; /* mais confortável */
+      max-width:760px;
       width:92%;
-      max-height:82vh;
+      max-height:85vh;
       overflow:auto;
-      background:var(--surface);
-      border-radius:calc(var(--radius) + 2px);
-      box-shadow:0 18px 45px rgba(0,0,0,.25);
-      border:1px solid var(--border);
+      background:var(--surface-raised);
+      border-radius:var(--radius-lg);
+      box-shadow:
+        0 24px 60px rgba(0,0,0,.3),
+        0 8px 20px rgba(0,0,0,.15),
+        inset 0 1px 0 rgba(255,255,255,.5);
+      border:1px solid color-mix(in srgb, var(--border-strong), #000 10%);
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+    .modal-content::-webkit-scrollbar{ width:10px; }
+    .modal-content::-webkit-scrollbar-track{ background:transparent; }
+    .modal-content::-webkit-scrollbar-thumb{ 
+      background:var(--border-strong); 
+      border:2px solid var(--surface-raised); 
+      background-clip:padding-box; 
+      border-radius:999px;
+    }
+    .modal-content::-webkit-scrollbar-thumb:hover{ 
+      background:var(--muted-2); 
     }
     .modal-header{
       display:flex; justify-content:space-between; align-items:center;
-      padding: 14px 18px;
-      border-bottom:1px solid var(--border);
+      padding: 16px 20px;
+      border-bottom:2px solid var(--border);
+      background: linear-gradient(to bottom, var(--surface-2), var(--surface-raised));
+      box-shadow: inset 0 -1px 0 rgba(255,255,255,.5);
     }
     .modal-header h2{
-      margin:0; font-size:16px; font-weight:800; letter-spacing:.02em; font-variant:small-caps;
+      margin:0; font-size:17px; font-weight:800; letter-spacing:.03em; text-transform:uppercase;
+      background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent), #000 20%));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
     .modal-body{
       padding: var(--space-4);
@@ -488,16 +849,26 @@
     }
 
     .day-overlay{
-      position: fixed; /* já é setado em JS, repetimos por segurança */
-      inset: auto auto auto auto; /* neutral */
+      position: fixed;
+      inset: auto auto auto auto;
       z-index: var(--z-popover);
-      background: var(--surface);               /* fundo opaco */
+      background: var(--surface-raised);
       color: var(--text);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-strong);
       border-radius: var(--radius);
-      box-shadow: 0 12px 30px rgba(0,0,0,.18), 0 2px 6px rgba(0,0,0,.08);
-      width: 280px; /* JS ajusta com Floating UI; aqui é mínimo seguro */
-      overflow: hidden; /* para o cabeçalho fixo */
+      box-shadow: 
+        0 16px 40px rgba(0,0,0,.2), 
+        0 4px 12px rgba(0,0,0,.12),
+        inset 0 1px 0 rgba(255,255,255,.5);
+      width: 290px;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      animation: popoverFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @keyframes popoverFadeIn{
+      from{ opacity:0; transform: scale(0.95); }
+      to{ opacity:1; transform: scale(1); }
     }
 
     .day-overlay[hidden]{ display:none !important; }
@@ -595,13 +966,35 @@
       font-size:12px; color:var(--muted); margin-bottom:6px; font-variant: small-caps; letter-spacing:.04em;
     }
     .action-progress-bar{
-      height:6px; background: #f5efe1; border-radius:999px; overflow:hidden; position:relative;
-      box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
+      height:8px; 
+      background: var(--surface-2); 
+      border-radius:999px; 
+      overflow:hidden; 
+      position:relative;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.08);
+      border:1px solid var(--border);
     }
     .action-progress-bar .fill{
       height:100%; width:0%;
-      background: linear-gradient(90deg, var(--gilded), color-mix(in srgb, var(--gilded), #000 20%));
-      transition: width .35s ease;
+      background: 
+        linear-gradient(90deg, 
+          transparent, 
+          rgba(255,255,255,.3) 50%, 
+          transparent),
+        linear-gradient(90deg, var(--gilded), color-mix(in srgb, var(--gilded), #000 20%));
+      transition: width .35s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 8px color-mix(in srgb, var(--gilded), #000 20%);
+      position:relative;
+    }
+    .action-progress-bar .fill::after{
+      content:'';
+      position:absolute; inset:0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent);
+      animation: progressShine 1.5s infinite;
+    }
+    @keyframes progressShine{
+      0%, 100% { transform: translateX(-100%); }
+      50% { transform: translateX(200%); }
     }
     .action-progress.done{
       border-left-color: var(--ok);
@@ -613,14 +1006,46 @@
 
     /* === Mini shimmer para placeholders (opcional) === */
     .shimmer{
-      position:relative; overflow:hidden; background: #fff;
+      position:relative; overflow:hidden; 
+      background: linear-gradient(90deg, var(--surface), var(--surface-2), var(--surface));
+      background-size: 200% 100%;
+      animation: shimmerBg 1.5s ease-in-out infinite;
     }
     .shimmer::after{
       content:""; position:absolute; inset:0 -150%; transform: translateX(-100%);
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
-      animation: shimmer 1.2s infinite;
+      background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255,255,255,.4), 
+        transparent);
+      animation: shimmer 1.8s infinite;
     }
-    @keyframes shimmer{ 100% { transform: translateX(100%)} }
+    @keyframes shimmer{ 
+      100% { transform: translateX(100%); } 
+    }
+    @keyframes shimmerBg{
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    
+    /* === Animações suaves globais === */
+    @media (prefers-reduced-motion: no-preference) {
+      * {
+        scroll-behavior: smooth;
+      }
+    }
+    
+    /* === Loading spinner elegante === */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid var(--surface-2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
 
     /* ---------- “Marca” dentro do modal (sem balão) ---------- */
     .modal-brand{
@@ -731,8 +1156,31 @@
     .options-grid{ display:grid; grid-template-columns:1fr; gap:12px; }
     @media (min-width:600px){ .options-grid{ grid-template-columns:1fr 1fr; } }
 
-    .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow-1); }
-    .card h3{ margin:0 0 6px 0; font-size:13px; color:var(--accent-ink); }
+    .card{ 
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.5), transparent),
+        var(--surface-raised);
+      border:1px solid var(--border); 
+      border-radius:var(--radius); 
+      padding:16px; 
+      box-shadow:var(--shadow-2);
+      transition: all var(--transition);
+    }
+    .card:hover{
+      box-shadow:var(--shadow-3);
+      transform: translateY(-2px);
+      border-color:var(--border-strong);
+    }
+    .card h3{ 
+      margin:0 0 10px 0; 
+      font-size:14px; 
+      color:var(--accent-ink);
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.03em;
+      padding-bottom:8px;
+      border-bottom:2px solid var(--border);
+    }
 
     /* Manual enxuto */
     .manual{ font-size:12px; color:var(--muted); border-top:1px dashed var(--border); padding-top:10px; }
@@ -753,7 +1201,9 @@
 <body>
   <header aria-label="Barra superior">
     <h1>Acoli</h1>
-    <button id="optionsBtn" class="btn mini" type="button" title="Abrir opções">⚙️ Opções</button>
+    <button id="optionsBtn" class="btn primary mini" type="button" title="Abrir opções">
+      <span style="font-size:16px; margin-right:4px;">⚙️</span> Opções
+    </button>
   </header>
 
   <div class="season-ribbon" aria-hidden="true"></div>
